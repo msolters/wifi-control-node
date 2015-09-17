@@ -1,8 +1,13 @@
 {
   "name": "wifi-control",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Scan for, connect to, and disconnect from WiFi networks on Linux, MacOS and Windows.",
-  "main": "index.js",
+  "main": "lib/wifi-control.js",
+  "dependencies": {
+    "node-wifiscanner2": "^1.1.0",
+    "exec-sync": "^0.1.6",
+    "fibers": "^1.0.7"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
