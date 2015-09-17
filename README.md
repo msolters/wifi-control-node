@@ -37,7 +37,6 @@ Example Output:
   }
 ```
 
-
 # Methods
 The following methods use different commands across Windows, MacOS and Linux to provide the same functionality.  In broad strokes, the underlying system commands we are leveraging are:
 
@@ -92,7 +91,6 @@ key | Explanation
 ## Scan for Networks
 This package uses the [node-wifiscanner2 NPM package](https://www.npmjs.com/package/node-wifiscanner2) by Spark for the heavy lifting where AP scanning is concerned.  However, on Linux, we use a custom approach that leverages `nmcli` which bypasses the `sudo` requirement of `iwlist` and permits us to more readily scan local WiFi networks.  For example, without `sudo` on Linux, node-wifiscanner2 will often return *only* the AP currently connected to, even though many others are available.  The trade-off here is that on Linux, the result list does not include the MAC address of the AP.
 
-Direct call:
 ```js
   var scanResults = WiFiControl.scan();
 ```
@@ -116,7 +114,6 @@ Example output:
 ```
 The `WiFiControl.connectToAP( _ap )` command takes a wireless access point as an object and attempts to direct the host machine's wireless interface to connect to it.
 
-Direct call:
 ```js
   var _ap = {
     ssid: "Home 2.4Ghz",
@@ -149,8 +146,7 @@ Linux | wlan0, wlan1, ...
 Windows | wlan
 MacOS | en0, en1, ...
 
-Direct call:
-(Server only)
+Example:
 ```js
   var resultsAutomatic = WiFiControl.findInterface();
   var resultsManual = WiFiControl.findInterface( 'wlan2' );
