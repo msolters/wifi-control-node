@@ -24,7 +24,6 @@
     "ssid"
   ],
   "author": "Mark Solters <msolters@gmail.com>",
-  "license": "ISC",
   "bugs": {
     "url": "https://github.com/msolters/wifi-control-node/issues"
   },
