@@ -1,6 +1,6 @@
-# WiFi-Control
+# wifi-control
 
-Provides methods for scanning local WiFi access points, as well as connecting/disconnecting to networks.  Works for Windows, Linux and MacOS.
+A NodeJS module providing methods for scanning local WiFi access points, as well as connecting/disconnecting to networks.  Works for Windows, Linux and MacOS.
 
 Maybe you have a SoftAP-based IoT toy, and you just need to make a thin downloadeable "setup" client?  Maybe you want to make a headless Rpi-based device that needs to frequently change APs?
 
@@ -11,7 +11,6 @@ Install:
 
 ## Example:
 
-(Server)
 ```js
   var WiFiControl = require('wifi-control');
 
@@ -40,7 +39,7 @@ scanResults = {
 
 
 # Methods
-The following methods use different methods on different OSs to provide the same functionality.  In broad strokes, the underlying system commands we are leveraging are:
+The following methods use different commands across Windows, MacOS and Linux to provide the same functionality.  In broad strokes, the underlying system commands we are leveraging are:
 
 OS | Command
 ---|---
@@ -48,7 +47,7 @@ Windows | `netsh`
 MacOS | `networksetup`
 Linux | `nmcli`
 
-You may encounter bugs if you use this library on a system lacking these commands.
+You may encounter errors if you use this module on a system lacking these commands!
 
 **A Note About Synchronicity** (*Synchronicity!*)
 
@@ -74,33 +73,33 @@ Equivalently, to manually instruct the `WiFiControl` module to locate a wireless
 You can reconfigure the `WiFiControl` settings at any time using this method.  Possible `WiFiControl` settings are illustrated in the following example:
 
 ```js
-  // Server only
   var settings = {
     debug: true || false,
     iface: 'wlan0'
   };
 
   WiFiControl.configure( settings );
-  // also WiFiControl.init( settings );
+  // and/or WiFiControl.init( settings );
 ```
 
 **Settings Object**
+
 key | Explanation
 ---|---
-`debug` | (optional, bool) When `debug: true`,  will turn on verbose output to the server console.  When `debug: false` (default), only errors will be printed to the server console.
-`iface` | (optional, string) can be used to manually specify a network interface to use, instead of relying on `WiFiControl.findInterface()` to automatically find it.  This could be useful if for any reason `WiFiControl.findInterface()` is not working, or you have multiple network cards.
+`debug` | (optional, Bool) When `debug: true`,  will turn on verbose output to the server console.  When `debug: false` (default), only errors will be printed to the server console.
+`iface` | (optional, String) Can be used to manually specify a network interface to use, instead of relying on `WiFiControl.findInterface()` to automatically find it.  This could be useful if for any reason `WiFiControl.findInterface()` is not working, or you have multiple network cards.
 
 ## Scan for Networks
-This package uses the [node-wifiscanner2 NPM package](https://www.npmjs.com/package/node-wifiscanner2) by Spark for the heavy lifting where AP scanning is concerned.  However, on Linux, we use a custom approach that leverages `nmcli`, which bypasses the `sudo` requirement of `iwlist` and permits us to more readily scan local WiFi networks.
+This package uses the [node-wifiscanner2 NPM package](https://www.npmjs.com/package/node-wifiscanner2) by Spark for the heavy lifting where AP scanning is concerned.  However, on Linux, we use a custom approach that leverages `nmcli` which bypasses the `sudo` requirement of `iwlist` and permits us to more readily scan local WiFi networks.  For example, without `sudo` on Linux, node-wifiscanner2 will often return *only* the AP currently connected to, even though many others are available.  The trade-off here is that on Linux, the result list does not include the MAC address of the AP.
 
 Direct call:
 ```js
-  var results = WiFiControl.scan();
+  var scanResults = WiFiControl.scan();
 ```
 
 Example output:
-```json
-{
+```js
+scanResults = {
   "success":  true,
   "networks":
     [ { "mac": "AA:BB:CC:DD:EE:FF",
@@ -172,7 +171,9 @@ resultsManual = {
 ```
 
 # Notes
-Of the 3 OSs provided here, Windows is currently the least developed and least tested.  Expect bugs with:
+This library has been tested on Ubuntu & MacOS with no problems.
+
+Of the 3 OSs provided here, Windows is currently the least tested.  Expect bugs with:
 
 *  Connecting to secure APs in win32
 *  Resetting network interfaces in win32
