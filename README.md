@@ -89,11 +89,12 @@ key | Explanation
 `iface` | (optional, String) Can be used to manually specify a network interface to use, instead of relying on `WiFiControl.findInterface()` to automatically find it.  This could be useful if for any reason `WiFiControl.findInterface()` is not working, or you have multiple network cards.
 
 ## Scan for Networks
-This package uses the [node-wifiscanner2 NPM package](https://www.npmjs.com/package/node-wifiscanner2) by Spark for the heavy lifting where AP scanning is concerned.  However, on Linux, we use a custom approach that leverages `nmcli` which bypasses the `sudo` requirement of `iwlist` and permits us to more readily scan local WiFi networks.  For example, without `sudo` on Linux, node-wifiscanner2 will often return *only* the AP currently connected to, even though many others are available.  The trade-off here is that on Linux, the result list does not include the MAC address of the AP.
-
 ```js
   var scanResults = WiFiControl.scan();
 ```
+
+This package uses the [node-wifiscanner2 NPM package](https://www.npmjs.com/package/node-wifiscanner2) by Spark for the heavy lifting where AP scanning is concerned.  However, on Linux, we use a custom approach that leverages `nmcli` which bypasses the `sudo` requirement of `iwlist` and permits us to more readily scan local WiFi networks.
+
 
 Example output:
 ```js
