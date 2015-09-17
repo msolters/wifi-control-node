@@ -26,15 +26,15 @@ Install:
 
 Example Output:
 ```js
-scanResults = {
-  "success":  true,
-  "networks":
-    [ { "mac": "AA:BB:CC:DD:EE:FF",
-        "channel": "1",
-        "signal_level": "-43",
-        "ssid": "Home 2.4Ghz" } ],
-  "msg":"Nearby WiFi APs successfully scanned (1 found)."
-}
+  scanResults = {
+    "success":  true,
+    "networks":
+      [ { "mac": "AA:BB:CC:DD:EE:FF",
+          "channel": "1",
+          "signal_level": "-43",
+          "ssid": "Home 2.4Ghz" } ],
+    "msg":"Nearby WiFi APs successfully scanned (1 found)."
+  }
 ```
 
 
@@ -99,19 +99,19 @@ Direct call:
 
 Example output:
 ```js
-scanResults = {
-  "success":  true,
-  "networks":
-    [ { "mac": "AA:BB:CC:DD:EE:FF",
-        "channel": "1",
-        "signal_level": "-43",
-        "ssid": "Home 2.4Ghz" } ],
-  "msg":"Nearby WiFi APs successfully scanned (1 found)."
-}
+  scanResults = {
+    "success":  true,
+    "networks":
+      [ { "mac": "AA:BB:CC:DD:EE:FF",
+          "channel": "1",
+          "signal_level": "-43",
+          "ssid": "Home 2.4Ghz" } ],
+    "msg":"Nearby WiFi APs successfully scanned (1 found)."
+  }
 ```
 
 ## Connect To WiFi Network
-```
+```js
   var results = WiFiControl.connectToAP( _ap );
 ```
 The `WiFiControl.connectToAP( _ap )` command takes a wireless access point as an object and attempts to direct the host machine's wireless interface to connect to it.
@@ -158,16 +158,16 @@ Direct call:
 
 Output:
 ```js
-resultsAutomatic = {
-  "success":  true,
-  "msg":  "Automatically located wireless interface wlan2.",
-  "interface":  "wlan2"
-}
-resultsManual = {
-  "success":  true,
-  "msg":  "Wireless interface manually set to wlan2.",
-  "interface":  "wlan2"
-}
+  resultsAutomatic = {
+    "success":  true,
+    "msg":  "Automatically located wireless interface wlan2.",
+    "interface":  "wlan2"
+  }
+  resultsManual = {
+    "success":  true,
+    "msg":  "Wireless interface manually set to wlan2.",
+    "interface":  "wlan2"
+  }
 ```
 
 # Notes
