@@ -574,7 +574,7 @@ module.exports =
         # For MacOS, parse `airport -I` to acquire networking interface data.
         #
         when "darwin"
-          connectionData = execSync "#{Airport} -I"
+          connectionData = execSync "#{AirPort} -I"
           for ln, k in connectionData.split '\n'
             try
               parsedLine = parsePatterns.airport_line.exec( ln.trim() )
