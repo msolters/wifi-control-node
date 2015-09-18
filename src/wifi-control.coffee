@@ -588,12 +588,6 @@ module.exports =
               when "SSID"
                 interfaceState.ssid = VALUE
             break if KEY is "SSID"  # we have everything we need!
-          unless foundInterface
-            # If we didn't find anything...
-            return {
-              success: false
-              msg: "Unable to retrieve state of network interface #{WiFiControlSettings.iface}."
-            }
 
       return {
         success: true
