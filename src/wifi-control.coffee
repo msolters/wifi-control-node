@@ -8,7 +8,7 @@ WiFiScanner = require 'node-wifiscanner2'
 # On Windows, we need write .xml files to create network profiles :(
 fs = require 'fs'
 # To execute commands in the host machine, we'll use child_process.exec!
-execSync = require 'exec-sync'
+execSync = require('child_process').execSync
 
 
 #
