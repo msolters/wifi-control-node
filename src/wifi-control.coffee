@@ -1,3 +1,6 @@
+#
+# NPM Dependencies.
+#
 # For promised callbacks, we'll need Future.
 Future = require 'fibers/future'
 # node-wifiscanner2 is a great NPM package for scanning WiFi APs (for Windows & Mac -- it REQUIRES sudo on Linux).
@@ -7,12 +10,17 @@ fs = require 'fs'
 # To execute commands in the host machine, we'll use child_process.exec!
 execSync = require 'exec-sync'
 
+
 #
-# Define WiFiControl methods.
+# Define WiFiControl settings.
 #
 WiFiControlSettings =
   iface: null
   debug: false
+parsePatterns =
+  nmcli_line: new RegExp /([A-Z]+):\s+(.*)+/
+
+
 #
 #
 # WiFiLog:        Helper method for debugging and throwing
@@ -24,6 +32,10 @@ WiFiLog = (msg, error=false) ->
   else
     console.log "WiFiControl: #{msg}" if WiFiControlSettings.debug
 
+
+#
+# WiFiControl Methods.
+#
 module.exports =
   #
   # init:   Initial setup.  This is almost the same as config, except it
@@ -181,19 +193,20 @@ module.exports =
         # the structure found in node-wifiscanner2 for win32 and MacOS.
         #
         networks = []
-        parsePattern = new RegExp /\s+(.*)+/
         for nwk, c in scanResults.split '*:'
           continue if c is 0
           _network = {}
           for ln, k in nwk.split '\n'
-            value = parsePattern.exec( ln.trim() )
-            switch k
-              when 1
-                _network.ssid = String value[1]
-              when 3
-                _network.channel = String value[1]
-              when 5
-                _network.signal_level = String value[1]
+            [KEY, VALUE] = parsePatterns.nmcli_line.exec( ln.trim() )
+            switch KEY
+              when "SSID"
+                _network.ssid = String VALUE
+              when "CHAN"
+                _network.channel = String VALUE
+              when "SIGNAL"
+                _network.signal_level = String VALUE
+              when "SECURITY"
+                _network.security = String VALUE
           networks.push _network unless _network.ssid is "--"
         _msg = "Nearby WiFi APs successfully scanned (#{networks.length} found)."
         WiFiLog _msg
@@ -443,6 +456,29 @@ module.exports =
       }
     catch error
       _msg = "Encountered an error while resetting wireless interface: #{error}"
+      WiFiLog _msg, true
+      return {
+        success: false
+        msg: _msg
+      }
+
+  #
+  # isConnected:     Return connection state of the network interface:
+  #                   true: network interface is connected to an SSID
+  #                   false: network interface is disconnected
+  isConnected: ->
+    try
+      switch process.platform
+        when "linux"
+          connectionData = execSync "nmcli -m multiline device status"
+          for ln, i in connectionData.split '\n'
+            console.log "hi"
+        when "win32"
+          console.log "hi"
+        when "darwin"
+          console.log "hi"
+    catch error
+      _msg = "Encountered an error while acquiring network interface connection state: #{error}"
       WiFiLog _msg, true
       return {
         success: false
