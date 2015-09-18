@@ -9,9 +9,6 @@ WiFiScanner = require 'node-wifiscanner2'
 fs = require 'fs'
 # To execute commands in the host machine, we'll use child_process.exec!
 execSyncToBuffer = require('child_process').execSync
-execSync = (command, options={}) ->
-  execSyncToBuffer command, options
-    .toString()
 
 
 #
@@ -20,10 +17,35 @@ execSync = (command, options={}) ->
 WiFiControlSettings =
   iface: null
   debug: false
-parsePatterns =
-  nmcli_line: new RegExp /([A-Z]+):\s+(.*)+/
 
+#
+# Construct OS-specific parsing patterns.
+#
+parsePatterns = {}
+# Different OSs have different terms for network interface
+# connection state.  We would like to have consistent output
+# from getIfaceState(), however, so we will map the outputs
+# we care about to either "connected" or "disconnected".
+connectionStateMap =
+  init: "disconnected"  # MacOS
+  running: "connected"  # MacOS
+switch process.platform
+  when "linux"
+    parsePatterns.nmcli_line = new RegExp /([A-Z]+):\s+(.*)+/
+  when "darwin"
+    AirPort = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport"
+    parsePatterns.airport_line = new RegExp /\s+(.*)+: (.*)+/
 
+#
+# Local helper functions.
+#
+#
+# execSync: Executes command with options via child_process.execSync,
+#           but guarantees output as a String instead of a buffer.
+#
+execSync = (command, options={}) ->
+  execSyncToBuffer command, options
+    .toString()
 #
 #
 # WiFiLog:        Helper method for debugging and throwing
@@ -34,6 +56,7 @@ WiFiLog = (msg, error=false) ->
     console.error "WiFiControl: #{msg}"
   else
     console.log "WiFiControl: #{msg}" if WiFiControlSettings.debug
+
 
 
 #
@@ -276,17 +299,18 @@ module.exports =
       unless _ap.password?
         _ap.password = ""
       #
-      # (3) Connect to AP using nmcli, netsh or networksetup, depending on OS.
+      # (3) Construct an OS-specific command chain for connecting to
+      #     a wireless AP.
       #
       switch process.platform
+        #
+        # With Linux, we can use nmcli to do the heavy lifting.
+        #
+        #
+        # (1) Does a connection that matches the name of the ssid
+        #     already exist?
+        #
         when "linux"
-          #
-          # With Linux, we can use nmcli to do the heavy lifting.
-          #
-          #
-          # (1) Does a connection that matches the name of the ssid
-          #     already exist?
-          #
           COMMANDS =
             delete: "nmcli connection delete \"#{_ap.ssid}\""
             connect: "nmcli device wifi connect \"#{_ap.ssid}\""
@@ -306,17 +330,17 @@ module.exports =
             WiFiLog "It appears there is already a connection for this SSID."
             connectToAPChain.push "delete"
           connectToAPChain.push "connect"
+        #
+        # Windows is a special child.  While the netsh command provides us
+        # quite a bit of functionality, the real kicker is that to connect
+        # to a given network using it, we must first have a so-called wireless
+        # profile for that network in the machine.
+        # This can be done ONLY through the GUI, or by loading an XML file which
+        # must already contain the SSID information in plaintext and as HEX.
+        # Once we create this XML file, we will add the profile inside, and then
+        # connect to it all using the netsh command.
+        #
         when "win32"
-          #
-          # Windows is a special child.  While the netsh command provides us
-          # quite a bit of functionality, the real kicker is that to connect
-          # to a given network using it, we must first have a so-called wireless
-          # profile for that network in the machine.
-          # This can be done ONLY through the GUI, or by loading an XML file which
-          # must already contain the SSID information in plaintext and as HEX.
-          # Once we create this XML file, we will add the profile inside, and then
-          # connect to it all using the netsh command.
-          #
           WiFiLog "Generating win32 wireless profile..."
           #
           # (1) Convert SSID to Hex
@@ -377,6 +401,10 @@ module.exports =
             COMMANDS.connect += " \"#{_ap.password}\""
           connectToAPChain = [ "connect" ]
 
+      #
+      # (4) Connect to AP using using the above constructed
+      #     command chain.
+      #
       for com in connectToAPChain
         WiFiLog "Executing:\t#{COMMANDS[com]}"
         #
@@ -404,11 +432,13 @@ module.exports =
         # Otherwise, so far so good!
         #
         WiFiLog "Success!"
+
       #
-      # Now we keep checking the state of the network interface
-      # to make sure it ends up actually being connected to the
-      # desired SSID.
+      # (5) Now we keep checking the state of the network interface
+      #     to make sure it ends up actually being connected to the
+      #     desired SSID.
       #
+      WiFiLog "Waiting for connection attempt to settle..."
       while true
         ifaceState = @getIfaceState()
         if ifaceState.success
@@ -507,6 +537,9 @@ module.exports =
     try
       interfaceState = {}
       switch process.platform
+        #
+        # For Linux, parse nmcli to acquire networking interface data.
+        #
         when "linux"
           foundInterface = false
           connectionData = execSync "nmcli -m multiline device status"
@@ -525,19 +558,43 @@ module.exports =
                 interfaceState.state = VALUE if foundInterface
               when "CONNECTION"
                 interfaceState.ssid = VALUE if foundInterface
-            break if KEY is "CONNECTION" and foundInterface
+            break if KEY is "CONNECTION" and foundInterface # we have everything we need!
           unless foundInterface
             # If we didn't find anything...
             return {
               success: false
               msg: "Unable to retrieve state of network interface #{WiFiControlSettings.iface}."
             }
+        #
+        # For Windows, parse netsh to acquire networking interface data.
+        #
         when "win32"
           console.log "hi"
+        #
+        # For MacOS, parse `airport -I` to acquire networking interface data.
+        #
         when "darwin"
-          console.log "hi"
-      #if !interfaceState.ssid?
-      #  interfaceState.ssid = false
+          connectionData = execSync "#{Airport} -I"
+          for ln, k in connectionData.split '\n'
+            try
+              parsedLine = parsePatterns.airport_line.exec( ln.trim() )
+              KEY = parsedLine[1]
+              VALUE = parsedLine[2]
+            catch error
+              continue  # this line was not a key: value pair!
+            switch KEY
+              when "state"
+                interfaceState.state = connectionStateMap[ VALUE ]
+              when "SSID"
+                interfaceState.ssid = VALUE
+            break if KEY is "SSID"  # we have everything we need!
+          unless foundInterface
+            # If we didn't find anything...
+            return {
+              success: false
+              msg: "Unable to retrieve state of network interface #{WiFiControlSettings.iface}."
+            }
+
       return {
         success: true
         msg: "Successfully acquired state of network interface #{WiFiControlSettings.iface}."
