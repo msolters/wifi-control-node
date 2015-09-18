@@ -6,11 +6,3 @@ WiFiControl.init({
 console.log( WiFiControl.connectToAP({
   ssid: "xfinitywifi"
 }) );
-var state;
-while (1) {
-  state = WiFiControl.getIfaceState().ifaceState
-  if (state.state === "connected") {
-    break;
-  }
-}
-console.log( state );

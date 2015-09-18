@@ -405,12 +405,42 @@ module.exports =
         #
         WiFiLog "Success!"
       #
-      # We've made it through every command in the chain with no errors.
+      # Now we keep checking the state of the network interface
+      # to make sure it ends up actually being connected to the
+      # desired SSID.
       #
-      return {
-        success: true
-        msg: "Successfully connected to #{_ap.ssid}!"
-      }
+      while true
+        ifaceState = @getIfaceState()
+        if ifaceState.success
+          if ifaceState.state is "connected"
+            break
+          else if ifaceState.state is "disconnected"
+            _msg = "Error: Interface is not currently connected to any wireless AP."
+            WiFiLog _msg, true
+            return {
+              success: false
+              msg: _msg
+            }
+      if ifaceState.ssid is _ap.ssid
+        #
+        # We're connected, and on the right SSID!  Success.
+        #
+        _msg = "Successfully connected to #{_ap.ssid}!"
+        WiFiLog _msg
+        return {
+          success: true
+          msg: _msg
+        }
+      else
+        #
+        # We're connected, but to the wrong SSID!
+        #
+        _msg = "Error: Interface is currently connected to #{ifaceState.ssid}"
+        WiFiLog _msg, true
+        return {
+          success: false
+          msg: _msg
+        }
     catch error
       _msg = "Encountered an error while connecting to #{_ap.ssid}: #{error}"
       WiFiLog _msg, true
@@ -511,7 +541,8 @@ module.exports =
       return {
         success: true
         msg: "Successfully acquired state of network interface #{WiFiControlSettings.iface}."
-        ifaceState: interfaceState
+        ssid: interfaceState.ssid
+        state: interfaceState.state
       }
     catch error
       _msg = "Encountered an error while acquiring network interface connection state: #{error}"
