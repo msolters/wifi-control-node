@@ -32,6 +32,8 @@ connectionStateMap =
 switch process.platform
   when "linux"
     parsePatterns.nmcli_line = new RegExp /([A-Z]+):\s+(.*)+/
+  when "win32"
+    parsePatterns.netsh_line = new RegExp /([^:]+): (.*)+/
   when "darwin"
     AirPort = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport"
     parsePatterns.airport_line = new RegExp /(.*)+: (.*)+/
@@ -569,7 +571,20 @@ module.exports =
         # For Windows, parse netsh to acquire networking interface data.
         #
         when "win32"
-          console.log "hi"
+          connectionData = execSync "netsh #{WiFiControlSettings.iface} show interface"
+          for ln, k in connectionData.split '\n'
+            try
+              parsedLine = parsePatterns.netsh_line.exec( ln.trim() )
+              KEY = parsedLine[1].trim()
+              VALUE = parsedLine[2].trim()
+            catch error
+              continue  # this line was not a key: value pair!
+            switch KEY
+              when "State"
+                interfaceState.state = connectionStateMap[ VALUE ]
+              when "SSID"
+                interfaceState.ssid = VALUE
+            break if KEY is "SSID"  # we have everything we need! -- NOTE: we may not get this on Windows!
         #
         # For MacOS, parse `airport -I` to acquire networking interface data.
         #
@@ -588,7 +603,9 @@ module.exports =
               when "SSID"
                 interfaceState.ssid = VALUE
             break if KEY is "SSID"  # we have everything we need!
-
+      #
+      # Return network interface state.
+      #
       return {
         success: true
         msg: "Successfully acquired state of network interface #{WiFiControlSettings.iface}."
