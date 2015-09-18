@@ -38,6 +38,7 @@ switch process.platform
     AirPort = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport"
     parsePatterns.airport_line = new RegExp /(.*)+: (.*)+/
 
+
 #
 # Local helper functions.
 #
@@ -48,7 +49,6 @@ switch process.platform
 execSync = (command, options={}) ->
   execSyncToBuffer command, options
     .toString()
-#
 #
 # WiFiLog:        Helper method for debugging and throwing
 #                 errors.
@@ -117,13 +117,15 @@ module.exports =
       switch process.platform
         when "linux"
           WiFiLog "Host machine is Linux."
-          # On linux, we use the results of `ip link show` and parse for
+          # On linux, we use the results of `nmcli device status` and parse for
           # active `wlan*` interfaces.
-          findInterface = "ip link show | grep wlan | grep -i \"state UP\""
-          WiFiLog "Executing: #{findInterface}"
-          _interface = execSync findInterface
+          findInterfaceCom = "nmcli -m multiline device status | grep wlan"
+          WiFiLog "Executing: #{findInterfaceCom}"
+          _interfaceLine = execSync findInterfaceCom
+          parsedLine = parsePatterns.nmcli_line.exec( _interfaceLine.trim() )
+          _interface = parsedLine[2]
           if _interface
-            _iface = _interface.trim().split(": ")[1]
+            _iface = _interface.trim()
             _msg = "Automatically located wireless interface #{_iface}."
             WiFiLog _msg
             interfaceResults =
@@ -140,9 +142,9 @@ module.exports =
         when "win32"
           WiFiLog "Host machine is Windows."
           # On windows we are currently assuming wlan by default.
-          findInterface = "echo wlan"
-          WiFiLog "Executing: #{findInterface}"
-          _interface = execSync findInterface
+          findInterfaceCom = "echo wlan"
+          WiFiLog "Executing: #{findInterfaceCom}"
+          _interface = execSync findInterfaceCom
           if _interface
             _iface = _interface.trim()
             _msg = "Automatically located wireless interface #{_iface}."
@@ -162,9 +164,9 @@ module.exports =
           WiFiLog "Host machine is MacOS."
           # On Mac, we get use the results of getting the route to
           # a public IP, and parse for interfaces.
-          findInterface = "networksetup -listallhardwareports | awk '/^Hardware Port: (Wi-Fi|AirPort)$/{getline;print $2}'"
-          WiFiLog "Executing: #{findInterface}"
-          _interface = execSync findInterface
+          findInterfaceCom = "networksetup -listallhardwareports | awk '/^Hardware Port: (Wi-Fi|AirPort)$/{getline;print $2}'"
+          WiFiLog "Executing: #{findInterfaceCom}"
+          _interface = execSync findInterfaceCom
           if _interface
             _iface = _interface.trim()
             _msg = "Automatically located wireless interface #{_iface}."
