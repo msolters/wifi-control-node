@@ -128,6 +128,22 @@ After connecting or disconnecting to various APs programmatically (which may or 
 
 This method attempts to do that, either by disconnecting the interface or restarting the system's network manager, if one exists.  It will report either success or failure in the return message.
 
+## Get Connection State
+```js
+  var ifaceState = WiFiControl.getIfaceState();
+```
+
+This method will tell you whether or not the wireless interface is connected to an access point, and if so, what SSID.  This method is used internally, for example, when `WiFiControl.connectToAP( _ap )` is called, to make sure that the interface either successfully connects or unsuccessfully does something else before returning.
+
+Example output:
+```js
+ifaceState = {
+  "success": true
+  "msg": "Successfully acquired state of network interface wlan0."
+  "ssid": "Home 2.4Ghz"
+  "state": "connected"
+}
+```
 
 ## Find Wireless Interface
 Unless your wireless cards are frequently changing or being turned on or off, it should not be necessary to use this method often.
@@ -169,3 +185,18 @@ Of the 3 OSs provided here, Windows is currently the least tested.  Expect bugs 
 
 *  Connecting to secure APs in win32
 *  Resetting network interfaces in win32
+
+
+## Change Log
+
+### v0.1.3  |
+*  `WiFiControl.getIfaceState()`
+*  `WiFiControl.connectToAP( ap )` now waits on `WiFiControl.getIfaceState()` to ensure network interface either succeeds or fails in connection attempt before returning a result.
+
+### v0.1.2
+9/18/2015
+
+*  `WiFiControl.init( settings )` and `WiFiControl.configure( settings )`
+*  `WiFiControl.connectToAP( ap )`, does not wait for connection to settle, no secure AP for win32 yet.
+*  `WiFiControl.findInterface( iface )`
+*  `WiFiControl.scan()`
