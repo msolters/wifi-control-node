@@ -8,7 +8,10 @@ WiFiScanner = require 'node-wifiscanner2'
 # On Windows, we need write .xml files to create network profiles :(
 fs = require 'fs'
 # To execute commands in the host machine, we'll use child_process.exec!
-execSync = require('child_process').execSync
+execSyncToBuffer = require('child_process').execSync
+execSync = (command, options={}) ->
+  execSyncToBuffer command, options
+    .toString()
 
 
 #
@@ -197,7 +200,12 @@ module.exports =
           continue if c is 0
           _network = {}
           for ln, k in nwk.split '\n'
-            [KEY, VALUE] = parsePatterns.nmcli_line.exec( ln.trim() )
+            try
+              parsedLine = parsePatterns.nmcli_line.exec( ln.trim() )
+              KEY = parsedLine[1]
+              VALUE = parsedLine[2]
+            catch error
+              continue  # this line was not a key: value pair!
             switch KEY
               when "SSID"
                 _network.ssid = String VALUE
@@ -284,10 +292,10 @@ module.exports =
             connect: "nmcli device wifi connect \"#{_ap.ssid}\""
           if _ap.password.length
             COMMANDS.connect += " password \"#{_ap.password}\""
-          stdout = execSync "nmcli connection show | grep \"#{_ap.ssid}\""
-          if stdout.length
-            ssidExist = true
-          else
+          try
+            stdout = execSync "nmcli connection show | grep \"#{_ap.ssid}\""
+            ssidExist = true if stdout.length
+          catch error
             ssidExist = false
           #
           # (2) Delete the old connection, if there is one.
@@ -463,20 +471,48 @@ module.exports =
       }
 
   #
-  # isConnected:     Return connection state of the network interface:
-  #                   true: network interface is connected to an SSID
-  #                   false: network interface is disconnected
-  isConnected: ->
+  # getIfaceState:     Return current connection state of the network
+  #                    interface and what SSID it is connected to.
+  getIfaceState: ->
     try
+      interfaceState = {}
       switch process.platform
         when "linux"
+          foundInterface = false
           connectionData = execSync "nmcli -m multiline device status"
-          for ln, i in connectionData.split '\n'
-            console.log "hi"
+          for ln, k in connectionData.split '\n'
+            try
+              parsedLine = parsePatterns.nmcli_line.exec( ln.trim() )
+              KEY = parsedLine[1]
+              VALUE = parsedLine[2]
+              VALUE = null if VALUE is "--"
+            catch error
+              continue  # this line was not a key: value pair!
+            switch KEY
+              when "DEVICE"
+                foundInterface = true if VALUE is WiFiControlSettings.iface
+              when "STATE"
+                interfaceState.state = VALUE if foundInterface
+              when "CONNECTION"
+                interfaceState.ssid = VALUE if foundInterface
+            break if KEY is "CONNECTION" and foundInterface
+          unless foundInterface
+            # If we didn't find anything...
+            return {
+              success: false
+              msg: "Unable to retrieve state of network interface #{WiFiControlSettings.iface}."
+            }
         when "win32"
           console.log "hi"
         when "darwin"
           console.log "hi"
+      #if !interfaceState.ssid?
+      #  interfaceState.ssid = false
+      return {
+        success: true
+        msg: "Successfully acquired state of network interface #{WiFiControlSettings.iface}."
+        ifaceState: interfaceState
+      }
     catch error
       _msg = "Encountered an error while acquiring network interface connection state: #{error}"
       WiFiLog _msg, true
