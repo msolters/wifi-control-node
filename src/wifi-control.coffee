@@ -34,7 +34,7 @@ switch process.platform
     parsePatterns.nmcli_line = new RegExp /([A-Z]+):\s+(.*)+/
   when "darwin"
     AirPort = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport"
-    parsePatterns.airport_line = new RegExp /\s+(.*)+: (.*)+/
+    parsePatterns.airport_line = new RegExp /(.*)+: (.*)+/
 
 #
 # Local helper functions.
