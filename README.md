@@ -4,11 +4,6 @@ A NodeJS module providing methods for scanning local WiFi access points, as well
 
 Maybe you have a SoftAP-based IoT toy, and you just need to make a thin downloadeable "setup" client?  Maybe you want to make a headless Rpi-based device that needs to frequently change APs?
 
-Install:
-```sh
-  npm install wifi-control
-```
-
 ## Example:
 
 ```js
