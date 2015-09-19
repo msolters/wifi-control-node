@@ -188,12 +188,13 @@ Of the 3 OSs provided here, Windows is currently the least tested.  Expect bugs 
 *  Connecting to secure APs in win32
 *  Resetting network interfaces in win32
 
-This package has been developed to be compatible with Node v0.10.36 because it is intended for [use in Meteor](https://atmospherejs.com/msolters/wifi-control), which currently runs on the v0.10.36 binary.  If you are using a version like 4.0.0+ and encounter bugs with `execSync` dependencies, you can just redefine `execSyncToBuffer = require('child_process').execSync` and remove the `execSync` dependency.
+This package has been developed to be compatible with Node v0.10.36 because it is intended for [use in Meteor](https://atmospherejs.com/msolters/wifi-control), which currently runs on the v0.10.36 binary.  If you are using a version like 4.0.0+ and encounter bugs with `execSync` dependencies, you can update the source of this package by going into `src/wifi-control.coffee` and redefine `execSyncToBuffer = require('child_process').execSync`, remove the `execSync` dependency, and `npm install`.  This will build the package by using the built-in `execSync` method that was later added to `child_process`.
 
 
 ## Change Log
 
-### v0.1.3  |
+### v0.1.3
+9/19/2015
 *  `WiFiControl.getIfaceState()`
 *  `WiFiControl.connectToAP( ap )` now waits on `WiFiControl.getIfaceState()` to ensure network interface either succeeds or fails in connection attempt before returning a result.  This definitely works on MacOS and Linux.
 
