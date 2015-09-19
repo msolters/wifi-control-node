@@ -417,21 +417,34 @@ module.exports =
         try
           stdout = execSync COMMANDS[com]
         catch error
-          unless /nmcli device wifi connect/.test(COMMANDS[com])
-            WiFiLog error, true
-            return {
-              success: false
-              msg: error
-            }
+          # Handle Linux errors:
+          if process.platform is "linux"
+            if error.stderr.toString().trim() is "Error: No network with SSID '#{_ap.ssid}' found."
+              _msg = "Error: No network called #{_ap.ssid} could be found."
+              WiFiLog _msg, true
+              return {
+                success: false
+                msg: _msg
+              }
+            # Ignore nmcli's add/modify errors, this is a system bug
+            unless /nmcli device wifi connect/.test(COMMANDS[com])
+              WiFiLog error, true
+              return {
+                success: false
+                msg: error
+              }
         #
         # If we've made it this far, check the output.
         #
-        if process.platform is "darwin" and stdout is "Could not find network #{_ap.ssid}."
-          WiFiLog stdout, true
-          return {
-            success: false
-            msg: stdout
-          }
+        switch process.platform
+          when "darwin"
+            if stdout is "Could not find network #{_ap.ssid}."
+              _msg = "Error: No network called #{_ap.ssid} could be found."
+              WiFiLog _msg, true
+              return {
+                success: false
+                msg: _msg
+              }
         #
         # Otherwise, so far so good!
         #

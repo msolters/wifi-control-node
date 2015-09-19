@@ -3,7 +3,7 @@ WiFiControl.init({
   debug: true
 });
 //console.log( WiFiControl.scanForWiFi() );
-/*console.log( WiFiControl.connectToAP({
-  ssid: "CIC"
-}) );*/
+console.log( WiFiControl.connectToAP({
+  ssid: "xfinitywif"
+}) );
 console.log( WiFiControl.getIfaceState() );
