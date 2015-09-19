@@ -8,8 +8,9 @@ WiFiScanner = require 'node-wifiscanner2'
 # On Windows, we need write .xml files to create network profiles :(
 fs = require 'fs'
 # To execute commands in the host machine, we'll use child_process.exec!
-execSyncToBuffer = require('child_process').execSync
-
+#execSyncToBuffer = require('child_process').execSync
+#if !execSyncToBuffer?
+execSyncToBuffer = require('execSync').exec
 
 #
 # Define WiFiControl settings.
@@ -47,8 +48,12 @@ switch process.platform
 #           but guarantees output as a String instead of a buffer.
 #
 execSync = (command, options={}) ->
-  execSyncToBuffer command, options
-    .toString()
+  results = execSyncToBuffer command, options
+  unless results.code
+    return results.stdout
+  throw
+    stderr: results.stdout
+
 #
 # WiFiLog:        Helper method for debugging and throwing
 #                 errors.

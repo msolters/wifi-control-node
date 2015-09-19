@@ -4,6 +4,6 @@ WiFiControl.init({
 });
 //console.log( WiFiControl.scanForWiFi() );
 console.log( WiFiControl.connectToAP({
-  ssid: "xfinitywifi"
+  ssid: "xfinitywif"
 }) );
 console.log( WiFiControl.getIfaceState() );

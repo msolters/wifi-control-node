@@ -5,7 +5,8 @@
   "main": "lib/wifi-control.js",
   "dependencies": {
     "node-wifiscanner2": "^1.1.0",
-    "fibers": "^1.0.7"
+    "fibers": "^1.0.7",
+    "execSync": "^1.0.2"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
