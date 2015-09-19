@@ -32,7 +32,7 @@ connectionStateMap =
   running: "connected"  # MacOS
 switch process.platform
   when "linux"
-    parsePatterns.nmcli_line = new RegExp /([A-Z]+):\s+(.*)+/
+    parsePatterns.nmcli_line = new RegExp /([^:]+):\s+(.*)+/
   when "win32"
     parsePatterns.netsh_line = new RegExp /([^:]+): (.*)+/
   when "darwin"
@@ -563,8 +563,12 @@ module.exports =
         # For Linux, parse nmcli to acquire networking interface data.
         #
         when "linux"
+          #
+          # (1) First, we get connection name & state
+          #
           foundInterface = false
           connectionData = execSync "nmcli -m multiline device status"
+          connectionName = null
           for ln, k in connectionData.split '\n'
             try
               parsedLine = parsePatterns.nmcli_line.exec( ln.trim() )
@@ -579,13 +583,25 @@ module.exports =
               when "STATE"
                 interfaceState.state = VALUE if foundInterface
               when "CONNECTION"
-                interfaceState.ssid = VALUE if foundInterface
+                connectionName = VALUE.replace(/(["\s'$`\\])/g,'\\$1') if foundInterface
             break if KEY is "CONNECTION" and foundInterface # we have everything we need!
+          # If we didn't find anything...
           unless foundInterface
-            # If we didn't find anything...
             return {
               success: false
               msg: "Unable to retrieve state of network interface #{WiFiControlSettings.iface}."
+            }
+          #
+          # (2) Next, we get the actual SSID
+          #
+          try
+            ssidData = execSync "nmcli -m multiline connection show #{connectionName} | grep 802-11-wireless.ssid"
+            parsedLine = parsePatterns.nmcli_line.exec( ssidData.trim() )
+            interfaceState.ssid = parsedLine[2]
+          catch error
+            return {
+              success: false
+              msg: "Error while retrieving SSID information of network interface #{WiFiControlSettings.iface}: #{error}"
             }
         #
         # For Windows, parse netsh to acquire networking interface data.
