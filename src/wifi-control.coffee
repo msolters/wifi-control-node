@@ -326,7 +326,7 @@ module.exports =
           if _ap.password.length
             COMMANDS.connect += " password \"#{_ap.password}\""
           try
-            stdout = execSync "nmcli connection show | grep '\"#{_ap.ssid}\"$'"
+            stdout = execSync "nmcli connection show \"#{_ap.ssid}\""
             ssidExist = true if stdout.length
           catch error
             ssidExist = false
@@ -583,7 +583,7 @@ module.exports =
               when "STATE"
                 interfaceState.state = VALUE if foundInterface
               when "CONNECTION"
-                connectionName = VALUE.replace(/(["\s'$`\\])/g,'\\$1') if foundInterface
+                connectionName = VALUE if foundInterface
             break if KEY is "CONNECTION" and foundInterface # we have everything we need!
           # If we didn't find anything...
           unless foundInterface
@@ -595,7 +595,7 @@ module.exports =
           # (2) Next, we get the actual SSID
           #
           try
-            ssidData = execSync "nmcli -m multiline connection show #{connectionName} | grep 802-11-wireless.ssid"
+            ssidData = execSync "nmcli -m multiline connection show \"#{connectionName}\" | grep 802-11-wireless.ssid"
             parsedLine = parsePatterns.nmcli_line.exec( ssidData.trim() )
             interfaceState.ssid = parsedLine[2]
           catch error
