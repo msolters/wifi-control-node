@@ -1,6 +1,6 @@
 {
   "name": "wifi-control",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Scan for, connect to, and disconnect from WiFi networks on Linux, MacOS and Windows.",
   "main": "lib/wifi-control.js",
   "dependencies": {

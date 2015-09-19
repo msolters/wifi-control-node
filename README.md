@@ -120,6 +120,8 @@ The `WiFiControl.connectToAP( _ap )` command takes a wireless access point as an
 
 The `.password` property is optional and may be omitted for open networks.
 
+> Note: Windows can only connect to open networks currently.
+
 ## Reset Wireless Interface
 ```js
   WiFiControl.resetWiFi();
@@ -186,12 +188,14 @@ Of the 3 OSs provided here, Windows is currently the least tested.  Expect bugs 
 *  Connecting to secure APs in win32
 *  Resetting network interfaces in win32
 
+This package has been developed to be compatible with Node v0.10.36 because it is intended for [use in Meteor](https://atmospherejs.com/msolters/wifi-control), which currently runs on the v0.10.36 binary.  If you are using a version like 4.0.0+ and encounter bugs with `execSync` dependencies, you can just redefine `execSyncToBuffer = require('child_process').execSync` and remove the `execSync` dependency.
+
 
 ## Change Log
 
 ### v0.1.3  |
 *  `WiFiControl.getIfaceState()`
-*  `WiFiControl.connectToAP( ap )` now waits on `WiFiControl.getIfaceState()` to ensure network interface either succeeds or fails in connection attempt before returning a result.
+*  `WiFiControl.connectToAP( ap )` now waits on `WiFiControl.getIfaceState()` to ensure network interface either succeeds or fails in connection attempt before returning a result.  This definitely works on MacOS and Linux.
 
 ### v0.1.2
 9/18/2015
