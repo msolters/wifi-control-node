@@ -321,7 +321,7 @@ module.exports =
           if _ap.password.length
             COMMANDS.connect += " password \"#{_ap.password}\""
           try
-            stdout = execSync "nmcli connection show | grep \"#{_ap.ssid}\""
+            stdout = execSync "nmcli connection show | grep '\"#{_ap.ssid}\"$'"
             ssidExist = true if stdout.length
           catch error
             ssidExist = false
