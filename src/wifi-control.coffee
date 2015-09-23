@@ -31,9 +31,9 @@ connectionStateMap =
   init: "disconnected"  # MacOS
   running: "connected"  # MacOS
 powerStateMap =
-  On: true # MacOS
-  Off: false  # MacOS
-  enabled: true # linux
+  On: true        # MacOS
+  Off: false      # MacOS
+  enabled: true   # linux
   disabled: false # linux
 switch process.platform
   when "linux"
@@ -550,7 +550,6 @@ module.exports =
       #
       while true
         ifaceState = @getIfaceState()
-        console.log ifaceState
         if ifaceState.success
           if ifaceState.power
             break
