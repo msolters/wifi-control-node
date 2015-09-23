@@ -8,9 +8,8 @@ WiFiScanner = require 'node-wifiscanner2'
 # On Windows, we need write .xml files to create network profiles :(
 fs = require 'fs'
 # To execute commands in the host machine, we'll use child_process.exec!
-#execSyncToBuffer = require('child_process').execSync
-#if !execSyncToBuffer?
-execSyncToBuffer = require('execSync').exec
+execSyncToBuffer = require('child_process').execSync
+
 
 #
 # Define WiFiControl settings.
@@ -30,15 +29,17 @@ parsePatterns = {}
 connectionStateMap =
   init: "disconnected"  # MacOS
   running: "connected"  # MacOS
+powerStateMap =
+  On: true # MacOS
+  Off: false  # MacOS
+  enabled: true # linux
+  disabled: false # linux
 switch process.platform
   when "linux"
-    parsePatterns.nmcli_line = new RegExp /([^:]+):\s+(.*)+/
-  when "win32"
-    parsePatterns.netsh_line = new RegExp /([^:]+): (.*)+/
+    parsePatterns.nmcli_line = new RegExp /([A-Z]+):\s+(.*)+/
   when "darwin"
     AirPort = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport"
     parsePatterns.airport_line = new RegExp /(.*)+: (.*)+/
-
 
 #
 # Local helper functions.
@@ -48,12 +49,9 @@ switch process.platform
 #           but guarantees output as a String instead of a buffer.
 #
 execSync = (command, options={}) ->
-  results = execSyncToBuffer command, options
-  unless results.code
-    return results.stdout
-  throw
-    stderr: results.stdout
-
+  execSyncToBuffer command, options
+    .toString()
+#
 #
 # WiFiLog:        Helper method for debugging and throwing
 #                 errors.
@@ -122,15 +120,13 @@ module.exports =
       switch process.platform
         when "linux"
           WiFiLog "Host machine is Linux."
-          # On linux, we use the results of `nmcli device status` and parse for
+          # On linux, we use the results of `ip link show` and parse for
           # active `wlan*` interfaces.
-          findInterfaceCom = "nmcli -m multiline device status | grep wlan"
-          WiFiLog "Executing: #{findInterfaceCom}"
-          _interfaceLine = execSync findInterfaceCom
-          parsedLine = parsePatterns.nmcli_line.exec( _interfaceLine.trim() )
-          _interface = parsedLine[2]
+          findInterface = "ip link show | grep wlan | grep -i \"state UP\""
+          WiFiLog "Executing: #{findInterface}"
+          _interface = execSync findInterface
           if _interface
-            _iface = _interface.trim()
+            _iface = _interface.trim().split(": ")[1]
             _msg = "Automatically located wireless interface #{_iface}."
             WiFiLog _msg
             interfaceResults =
@@ -147,9 +143,9 @@ module.exports =
         when "win32"
           WiFiLog "Host machine is Windows."
           # On windows we are currently assuming wlan by default.
-          findInterfaceCom = "echo wlan"
-          WiFiLog "Executing: #{findInterfaceCom}"
-          _interface = execSync findInterfaceCom
+          findInterface = "echo wlan"
+          WiFiLog "Executing: #{findInterface}"
+          _interface = execSync findInterface
           if _interface
             _iface = _interface.trim()
             _msg = "Automatically located wireless interface #{_iface}."
@@ -169,9 +165,9 @@ module.exports =
           WiFiLog "Host machine is MacOS."
           # On Mac, we get use the results of getting the route to
           # a public IP, and parse for interfaces.
-          findInterfaceCom = "networksetup -listallhardwareports | awk '/^Hardware Port: (Wi-Fi|AirPort)$/{getline;print $2}'"
-          WiFiLog "Executing: #{findInterfaceCom}"
-          _interface = execSync findInterfaceCom
+          findInterface = "networksetup -listallhardwareports | awk '/^Hardware Port: (Wi-Fi|AirPort)$/{getline;print $2}'"
+          WiFiLog "Executing: #{findInterface}"
+          _interface = execSync findInterface
           if _interface
             _iface = _interface.trim()
             _msg = "Automatically located wireless interface #{_iface}."
@@ -326,7 +322,7 @@ module.exports =
           if _ap.password.length
             COMMANDS.connect += " password \"#{_ap.password}\""
           try
-            stdout = execSync "nmcli connection show \"#{_ap.ssid}\""
+            stdout = execSync "nmcli connection show | grep \"#{_ap.ssid}\""
             ssidExist = true if stdout.length
           catch error
             ssidExist = false
@@ -422,34 +418,21 @@ module.exports =
         try
           stdout = execSync COMMANDS[com]
         catch error
-          # Handle Linux errors:
-          if process.platform is "linux"
-            if error.stderr.toString().trim() is "Error: No network with SSID '#{_ap.ssid}' found."
-              _msg = "Error: No network called #{_ap.ssid} could be found."
-              WiFiLog _msg, true
-              return {
-                success: false
-                msg: _msg
-              }
-            # Ignore nmcli's add/modify errors, this is a system bug
-            unless /nmcli device wifi connect/.test(COMMANDS[com])
-              WiFiLog error, true
-              return {
-                success: false
-                msg: error
-              }
+          unless /nmcli device wifi connect/.test(COMMANDS[com])
+            WiFiLog error, true
+            return {
+              success: false
+              msg: error
+            }
         #
         # If we've made it this far, check the output.
         #
-        switch process.platform
-          when "darwin"
-            if stdout is "Could not find network #{_ap.ssid}."
-              _msg = "Error: No network called #{_ap.ssid} could be found."
-              WiFiLog _msg, true
-              return {
-                success: false
-                msg: _msg
-              }
+        if process.platform is "darwin" and stdout is "Could not find network #{_ap.ssid}."
+          WiFiLog stdout, true
+          return {
+            success: false
+            msg: stdout
+          }
         #
         # Otherwise, so far so good!
         #
@@ -540,6 +523,21 @@ module.exports =
         stdout = execSync COMMANDS[com]
         _msg = "Success!"
         WiFiLog _msg
+      #
+      # (3) Ensure that the power has been restored to the interface!
+      #
+      while true
+        ifaceState = @getIfaceState()
+        if ifaceState.success
+          if ifaceState.power
+            break
+        else
+          _msg = "Error: Interface could not be reset."
+          WiFiLog _msg, true
+          return {
+            success: false
+            msg: _msg
+          }
       return {
         success: true
         msg: "Successfully reset WiFi!"
@@ -563,12 +561,8 @@ module.exports =
         # For Linux, parse nmcli to acquire networking interface data.
         #
         when "linux"
-          #
-          # (1) First, we get connection name & state
-          #
           foundInterface = false
           connectionData = execSync "nmcli -m multiline device status"
-          connectionName = null
           for ln, k in connectionData.split '\n'
             try
               parsedLine = parsePatterns.nmcli_line.exec( ln.trim() )
@@ -583,49 +577,31 @@ module.exports =
               when "STATE"
                 interfaceState.state = VALUE if foundInterface
               when "CONNECTION"
-                connectionName = VALUE if foundInterface
+                interfaceState.ssid = VALUE if foundInterface
             break if KEY is "CONNECTION" and foundInterface # we have everything we need!
-          # If we didn't find anything...
+          #
+          # (2) Get Interface Power State
+          #          powerData = execSync "nmcli networking"
+          interfaceState.power = powerStateMap[ powerData.trim() ]
           unless foundInterface
+            # If we didn't find anything...
             return {
               success: false
               msg: "Unable to retrieve state of network interface #{WiFiControlSettings.iface}."
-            }
-          #
-          # (2) Next, we get the actual SSID
-          #
-          try
-            ssidData = execSync "nmcli -m multiline connection show \"#{connectionName}\" | grep 802-11-wireless.ssid"
-            parsedLine = parsePatterns.nmcli_line.exec( ssidData.trim() )
-            interfaceState.ssid = parsedLine[2]
-          catch error
-            return {
-              success: false
-              msg: "Error while retrieving SSID information of network interface #{WiFiControlSettings.iface}: #{error}"
             }
         #
         # For Windows, parse netsh to acquire networking interface data.
         #
         when "win32"
-          connectionData = execSync "netsh #{WiFiControlSettings.iface} show interface"
-          for ln, k in connectionData.split '\n'
-            try
-              parsedLine = parsePatterns.netsh_line.exec( ln.trim() )
-              KEY = parsedLine[1].trim()
-              VALUE = parsedLine[2].trim()
-            catch error
-              continue  # this line was not a key: value pair!
-            switch KEY
-              when "State"
-                interfaceState.state = connectionStateMap[ VALUE ]
-              when "SSID"
-                interfaceState.ssid = VALUE
-            break if KEY is "SSID"  # we have everything we need! -- NOTE: we may not get this on Windows!
+          console.log "hi"
         #
         # For MacOS, parse `airport -I` to acquire networking interface data.
         #
         when "darwin"
           connectionData = execSync "#{AirPort} -I"
+          #
+          # (1) Get SSID and Interface Connection State
+          #
           for ln, k in connectionData.split '\n'
             try
               parsedLine = parsePatterns.airport_line.exec( ln.trim() )
@@ -639,14 +615,26 @@ module.exports =
               when "SSID"
                 interfaceState.ssid = VALUE
             break if KEY is "SSID"  # we have everything we need!
-      #
-      # Return network interface state.
-      #
+          #
+          # (2) Get Interface Power State
+          #
+          powerData = execSync "networksetup -getairportpower #{WiFiControlSettings.iface}"
+          try
+            parsedLine = parsePatterns.airport_line.exec( powerData.trim() )
+            KEY = parsedLine[1]
+            VALUE = parsedLine[2]
+          catch error
+            return {
+              success: false
+              msg: "Unable to retrieve state of network interface #{WiFiControlSettings.iface}."
+            }
+          interfaceState.power = powerStateMap[ VALUE ]
       return {
         success: true
         msg: "Successfully acquired state of network interface #{WiFiControlSettings.iface}."
         ssid: interfaceState.ssid
         state: interfaceState.state
+        power: interfaceState.power
       }
     catch error
       _msg = "Encountered an error while acquiring network interface connection state: #{error}"
