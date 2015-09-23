@@ -548,6 +548,7 @@ module.exports =
       #
       # (3) Ensure that the power has been restored to the interface!
       #
+      WiFiLog "Waiting for interface to finish resetting..."
       while true
         ifaceState = @getIfaceState()
         if ifaceState.success
