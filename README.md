@@ -192,6 +192,10 @@ This package has been developed to be compatible with Node v0.10.36 because it i
 
 
 ## Change Log
+### v0.1.6
+9/23/2015
+*  Better output logs for `WiFiControl.resetWiFi()`.
+
 ### v0.1.5
 9/23/2015
 *  `WiFiControl.resetWiFi()` blocks until wireless interface reports it has reset or returns an error.

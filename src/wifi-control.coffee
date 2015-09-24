@@ -553,6 +553,7 @@ module.exports =
         ifaceState = @getIfaceState()
         if ifaceState.success
           if ifaceState.power
+            WiFiLog "Success!  Wireless interface is now reset."
             break
         else
           _msg = "Error: Interface could not be reset."
