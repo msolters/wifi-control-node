@@ -70,6 +70,83 @@ WiFiLog = (msg, error=false) ->
     console.log "WiFiControl: #{msg}" if WiFiControlSettings.debug
 
 
+#
+# win32WirelessProfileBuilder:    This method generates the Windows wireless profile
+#                       XML file corresponding to the ssid, security, and
+#                       passphrase (key).
+#
+win32WirelessProfileBuilder = (ssid, security=false, key=null) ->
+  #
+  # (1) First, construct the header which specifies the SSID.
+  #
+  profile_content =   "<?xml version=\"1.0\"?>
+                      <WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\">
+                        <name>#{ssid.plaintext}</name>
+                        <SSIDConfig>
+                          <SSID>
+                            <hex>#{ssid.hex}</hex>
+                            <name>#{ssid.plaintext}</name>
+                          </SSID>
+                        </SSIDConfig>"
+  #
+  # (2) Next, depending on security, fill out the encryption-specific data.
+  #
+  switch security
+    when "wpa"
+      profile_content +=   "<connectionType>ESS</connectionType>
+                            <connectionMode>auto</connectionMode>
+                            <autoSwitch>true</autoSwitch>
+                            <MSM>
+                                <security>
+                                    <authEncryption>
+                                        <authentication>WPAPSK</authentication>
+                                        <encryption>TKIP</encryption>
+                                        <useOneX>false</useOneX>
+                                    </authEncryption>
+                                    <sharedKey>
+                                      <keyType>passPhrase</keyType>
+                                      <protected>false</protected>
+                                      <keyMaterial>#{key}</keyMaterial>
+                                    </sharedKey>
+                                </security>
+                            </MSM>"
+    when "wpa2"
+      profile_content +=   "<connectionType>ESS</connectionType>
+                            <connectionMode>auto</connectionMode>
+                            <autoSwitch>true</autoSwitch>
+                            <MSM>
+                              <security>
+                                <authEncryption>
+                                  <authentication>WPA2PSK</authentication>
+                                  <encryption>AES</encryption>
+                                  <useOneX>false</useOneX>
+                                </authEncryption>
+                                <sharedKey>
+                                  <keyType>passPhrase</keyType>
+                                  <protected>false</protected>
+                                  <keyMaterial>#{key}</keyMaterial>
+                                </sharedKey>
+                              </security>
+                            </MSM>"
+    else
+      # Open networks!
+      profile_content +=   "<connectionType>ESS</connectionType>
+                            <connectionMode>manual</connectionMode>
+                            <MSM>
+                              <security>
+                                <authEncryption>
+                                  <authentication>open</authentication>
+                                  <encryption>none</encryption>
+                                  <useOneX>false</useOneX>
+                                </authEncryption>
+                              </security>
+                            </MSM>"
+  #
+  # (3) Close the profile.
+  #
+  profile_content += "</WLANProfile>"
+
+
 
 #
 # WiFiControl Methods.
@@ -359,33 +436,18 @@ module.exports =
           #
           # (1) Convert SSID to Hex
           #
-          ssid_hex = ""
-          for i in [0.._ap.ssid.length-1]
-            ssid_hex += ssid.charCodeAt(i).toString(16)
+          ssid =
+            plaintext: _ap.ssid
+            hex = ""
+          for i in [0..ssid.plaintext.length-1]
+            ssid.hex += ssid.plaintext.charCodeAt(i).toString(16)
           #
           # (2) Generate XML content for the provided parameters.
           #
-          xmlContent = "<?xml version=\"1.0\"?>
-                        <WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\">
-                          <name>#{_ap.ssid}</name>
-                          <SSIDConfig>
-                            <SSID>
-                              <hex>#{ssid_hex}</hex>
-                              <name>#{_ap.ssid}</name>
-                            </SSID>
-                          </SSIDConfig>
-                          <connectionType>ESS</connectionType>
-                          <connectionMode>manual</connectionMode>
-                          <MSM>
-                            <security>
-                              <authEncryption>
-                                <authentication>open</authentication>
-                                <encryption>none</encryption>
-                                <useOneX>false</useOneX>
-                              </authEncryption>
-                            </security>
-                          </MSM>
-                        </WLANProfile>"
+          if _ap.password.length
+            xmlContent = win32WirelessProfileBuilder ssid, "wpa2", _ap.password
+          else
+            xmlContent = win32WirelessProfileBuilder ssid
           #
           # (3) Write to XML file; wait until done.
           #
