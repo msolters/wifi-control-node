@@ -47,7 +47,9 @@ You may encounter errors if you use this module on a system lacking these comman
 
 **A Note About Synchronicity** (*Synchronicity!*)
 
-All `WiFiControl` methods (except `WiFiControl.scanForWiFi( cb )`) are synchronous.  Calls to them will block.  This is a decision made that reflects the fact that low-level system operations such as starting and stopping network interfaces are intrinsically sequential.
+All native `WiFiControl` methods are synchronous.  Calls to them will block.  This is a decision made that reflects the fact that low-level system operations such as starting and stopping network interfaces should not be happening simultaneously.  Plus, there's lots of situations where you need to wait -- you can't communicate over a network, for instance, until you're totally sure you've fully associated with the router.
+
+The only exception to this is `WiFiControl.scanForWiFi( callback )`.
 
 ---
 
@@ -197,17 +199,16 @@ Output:
 ```
 
 # Notes
-This library has been tested on Ubuntu & MacOS with no problems.
+This library has been tested on Ubuntu 15.04, MacOS Yosemite, and Windows 10.
 
-Of the 3 OSs provided here, Windows is currently the least tested.  Expect bugs with:
-
-*  Connecting to secure APs in win32
-*  Resetting network interfaces in win32
-
-This package has been developed to be compatible with Node v0.10.36 because it is intended for [use in Meteor](https://atmospherejs.com/msolters/wifi-control), which currently runs on the v0.10.36 binary.  If you are using a version like 4.0.0+ and encounter bugs with `execSync` dependencies, you can update the source of this package by going into `src/wifi-control.coffee` and redefine `execSyncToBuffer = require('child_process').execSync`, remove the `execSync` dependency, and `npm install`.  This will build the package by using the built-in `execSync` method that was later added to `child_process`.
+This package has been developed to be compatible with Node v0.10.36 because it is intended for [use in Meteor](https://atmospherejs.com/msolters/wifi-control-meteor), which currently runs on the v0.10.36 binary.
 
 
 ## Change Log
+### v1.0.1
+9/27/2015
+*  Documentation fixes.
+
 ### v1.0.0
 9/26/2015
 *  `WiFiControl.getIfaceState(cb)` is extended to include more robust `connection` state of the interface, and also tested to work with Windows.  This method has also become an async method now!  **This is a breaking change if it is currently implemented in user application code as a sync method.**
