@@ -129,7 +129,7 @@ The `WiFiControl.connectToAP( _ap )` command takes a wireless access point as an
 
 The `.password` property is optional and may be omitted for open networks.
 
-> Note: The only types of networks tested to work on Windows so far are WPA2-Personal and Open.
+> Note: The only types of networks tested to work on Windows so far are WPA2-Personal and Open.  Any type of security is expected to work on Linux and MacOS.
 
 ## Reset Wireless Interface
 ```js
@@ -159,6 +159,7 @@ ifaceState = {
 
 Output parameters are as follows:
 Parameter | Value and Meaning
+---|---
 `success` | (bool), will only be `false` if there is an error.
 `msg` | A brief description of the request results.  Will contain a description of the error if `success: false`.
 `ssid` | (string or null) The SSID of the network the wireless interface is currently connected to.  If not presently connected, will be `undefined`.
