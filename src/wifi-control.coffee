@@ -29,8 +29,8 @@ connectionStateMap =
   running: "connected"  # MacOS
   connected: "connected" # Win32 & Linux
   disconnected: "disconnected" # Win32 & Linux
-  associating: "connecting"
-  connecting: "connecting"
+  associating: "connecting" # Win32
+  connecting: "connecting"  # Linux
 powerStateMap =
   On: true        # MacOS
   Off: false      # MacOS
