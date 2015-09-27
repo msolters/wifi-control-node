@@ -23,10 +23,14 @@ parsePatterns = {}
 # Different OSs have different terms for network interface
 # connection state.  We would like to have consistent output
 # from getIfaceState(), however, so we will map the outputs
-# we care about to either "connected" or "disconnected".
+# we care about to either true for connected, false for disconnected.
 connectionStateMap =
   init: "disconnected"  # MacOS
   running: "connected"  # MacOS
+  connected: "connected" # Win32 & Linux
+  disconnected: "disconnected" # Win32 & Linux
+  associating: "connecting"
+  connecting: "connecting"
 powerStateMap =
   On: true        # MacOS
   Off: false      # MacOS
@@ -288,6 +292,9 @@ module.exports =
   #                host machine's wireless interface.  For this, we are using
   #                the NPM package node-wifiscanner2 by Particle (aka Spark).
   #
+  #                This is an async method and it will return its results through
+  #                a user provided callback, cb(err, resp).
+  #
   scanForWiFi: (cb) ->
     unless WiFiControlSettings.iface?
       _msg = "You cannot scan for nearby WiFi networks without a valid wireless interface."
@@ -529,9 +536,9 @@ module.exports =
       while true
         ifaceState = @getIfaceState()
         if ifaceState.success
-          if ifaceState.state is "connected"
+          if ifaceState.connection is "connected"
             break
-          else if ifaceState.state is "disconnected"
+          else if ifaceState.connection is "disconnected"
             _msg = "Error: Interface is not currently connected to any wireless AP."
             WiFiLog _msg, true
             return {
@@ -669,7 +676,7 @@ module.exports =
                 when "DEVICE"
                   foundInterface = true if VALUE is WiFiControlSettings.iface
                 when "STATE"
-                  interfaceState.state = VALUE if foundInterface
+                  interfaceState.connection = connectionStateMap[ VALUE ] if foundInterface
                 when "CONNECTION"
                   connectionName = VALUE if foundInterface
               break if KEY is "CONNECTION" and foundInterface # we have everything we need!
@@ -695,7 +702,7 @@ module.exports =
             else
               interfaceState.ssid = null
           else
-            interfaceState.state = "disconnected"
+            interfaceState.connection = connectionStateMap[ VALUE ]
             interfaceState.ssid = null
         #
         # For Windows, parse netsh to acquire networking interface data.
@@ -704,16 +711,32 @@ module.exports =
           connectionData = execSync "netsh #{WiFiControlSettings.iface} show interface"
           for ln, k in connectionData.split '\n'
             try
-              parsedLine = parsePatterns.netsh_line.exec( ln.trim() )
-              KEY = parsedLine[1].trim()
-              VALUE = parsedLine[2].trim()
+              ln_trim = ln.trim()
+              if ln_trim is "Software Off"
+                interfaceState =
+                  ssid: null
+                  connected: false
+                  power: false
+                break
+              else
+                parsedLine = parsePatterns.netsh_line.exec( ln_trim )
+                KEY = parsedLine[1].trim()
+                VALUE = parsedLine[2].trim()
             catch error
               continue  # this line was not a key: value pair!
+            interfaceState.power = true
             switch KEY
               when "State"
-                interfaceState.state = connectionStateMap[ VALUE ]
+                interfaceState.connection = connectionStateMap[ VALUE ]
               when "SSID"
                 interfaceState.ssid = VALUE
+              when "Radio status"
+                if VALUE is "Hardware Off"
+                  interfaceState =
+                    ssid: null
+                    connected: false
+                    power: false
+                  break
             break if KEY is "SSID"  # we have everything we need! -- NOTE: we may not get this on Windows!
         #
         # For MacOS, parse `airport -I` to acquire networking interface data.
@@ -729,7 +752,7 @@ module.exports =
               continue  # this line was not a key: value pair!
             switch KEY
               when "state"
-                interfaceState.state = connectionStateMap[ VALUE ]
+                interfaceState.connection = connectionStateMap[ VALUE ]
               when "SSID"
                 interfaceState.ssid = VALUE
             break if KEY is "SSID"  # we have everything we need!
@@ -754,7 +777,7 @@ module.exports =
         success: true
         msg: "Successfully acquired state of network interface #{WiFiControlSettings.iface}."
         ssid: interfaceState.ssid
-        state: interfaceState.state
+        connection: interfaceState.connection
         power: interfaceState.power
       }
     catch error
