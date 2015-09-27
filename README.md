@@ -15,13 +15,15 @@ Maybe you have a SoftAP-based IoT toy, and you just need to make a thin download
   });
 
   //  Try scanning for access points:
-  var scanResults = WiFiControl.scan();
-  console.log( scanResults );
+  WiFiControl.scanForWiFi( function(err, response) {
+    if (err) console.log(error);
+    console.log(response);
+  });
 ```
 
 Example Output:
 ```js
-  scanResults = {
+  {
     "success":  true,
     "networks":
       [ { "mac": "AA:BB:CC:DD:EE:FF",
@@ -45,7 +47,7 @@ You may encounter errors if you use this module on a system lacking these comman
 
 **A Note About Synchronicity** (*Synchronicity!*)
 
-All `WiFiControl` methods are synchronous.  Calls to them will block.  This is a decision made that reflects the fact that low-level system operations such as starting and stopping network interfaces are intrinsically sequential.
+All `WiFiControl` methods (except `WiFiControl.scanForWiFi( cb )`) are synchronous.  Calls to them will block.  This is a decision made that reflects the fact that low-level system operations such as starting and stopping network interfaces are intrinsically sequential.
 
 ---
 
@@ -85,15 +87,20 @@ key | Explanation
 
 ## Scan for Networks
 ```js
-  var scanResults = WiFiControl.scan();
+  WiFiControl.scanForWiFi( function(err, response) {
+    if (err) console.log(error);
+    console.log(response);
+  });
 ```
 
-This package uses the [node-wifiscanner2 NPM package](https://www.npmjs.com/package/node-wifiscanner2) by Spark for the heavy lifting where AP scanning is concerned.  However, on Linux, we use a custom approach that leverages `nmcli` which bypasses the `sudo` requirement of `iwlist` and permits us to more readily scan local WiFi networks.
+On Windows and MacOS, this package uses the [node-wifiscanner2 NPM package](https://www.npmjs.com/package/node-wifiscanner2) by Spark for the heavy lifting where AP scanning is concerned.  However, since `node-wifiscanner2` requires `sudo` to scan for more than the network the host machine is *currently connected to* on Linux, a custom scanning algorithm is implemented inside `WiFiControl` that leverages `nmcli` instead.
+
+Note that this method is the only async `WiFiControl` method, and requires a callback to be passed in order to use its results.
 
 
 Example output:
 ```js
-  scanResults = {
+  {
     "success":  true,
     "networks":
       [ { "mac": "AA:BB:CC:DD:EE:FF",
@@ -120,7 +127,7 @@ The `WiFiControl.connectToAP( _ap )` command takes a wireless access point as an
 
 The `.password` property is optional and may be omitted for open networks.
 
-> Note: Windows can only connect to open networks currently.
+> Note: The only types of networks tested to work on Windows so far are WPA2-Personal and Open.
 
 ## Reset Wireless Interface
 ```js
@@ -140,12 +147,21 @@ This method will tell you whether or not the wireless interface is connected to 
 Example output:
 ```js
 ifaceState = {
-  "success": true
-  "msg": "Successfully acquired state of network interface wlan0."
-  "ssid": "Home 2.4Ghz"
-  "state": "connected"
+  "success": true,
+  "msg": "Successfully acquired state of network interface wlan0.",
+  "ssid": "Home 2.4Ghz",
+  "connection": "connected",
+  "power": true
 }
 ```
+
+Output parameters are as follows:
+Parameter | Value and Meaning
+`success` | (bool), will only be `false` if there is an error.
+`msg` | A brief description of the request results.  Will contain a description of the error if `success: false`.
+`ssid` | (string or null) The SSID of the network the wireless interface is currently connected to.  If not presently connected, will be `undefined`.
+`connection` | (string) Can take three values: "disconnected", "connecting", or "connected".  Describes the current state of the wireless interface association with the current AP.
+`power` | (bool) Will only be `false` if the specified wireless interface's driver or connection manager is disabled.
 
 ## Find Wireless Interface
 Unless your wireless cards are frequently changing or being turned on or off, it should not be necessary to use this method often.
@@ -192,6 +208,12 @@ This package has been developed to be compatible with Node v0.10.36 because it i
 
 
 ## Change Log
+### v1.0.0
+9/26/2015
+*  `WiFiControl.getIfaceState(cb)` is extended to include more robust `connection` state of the interface, and also tested to work with Windows.  This method has also become an async method now!  **This is a breaking change if it is currently implemented in user application code as a sync method.**
+*  `WiFiControl.resetWiFi()` tested to work with Windows.
+*  `WiFiControl.connecToAP(ap)` tested to work with Windows both with open and secure networks.
+
 ### v0.1.6
 9/23/2015
 *  Better output logs for `WiFiControl.resetWiFi()`.
