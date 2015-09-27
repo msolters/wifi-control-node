@@ -1,16 +1,13 @@
 #
 # NPM Dependencies.
 #
-# For promised callbacks, we'll need Future.
-Future = require 'fibers/future'
 # node-wifiscanner2 is a great NPM package for scanning WiFi APs (for Windows & Mac -- it REQUIRES sudo on Linux).
 WiFiScanner = require 'node-wifiscanner2'
 # On Windows, we need write .xml files to create network profiles :(
 fs = require 'fs'
-# To execute commands in the host machine, we'll use child_process.exec!
-#execSyncToBuffer = require('child_process').execSync
-#if !execSyncToBuffer?
-execSyncToBuffer = require('execSync').exec
+# To execute commands in the host machine, we'll use sync-exec.
+# Note: In nodejs >= v0.12 this will default to child_process.execSync.
+execSyncToBuffer = require 'sync-exec'
 
 #
 # Define WiFiControl settings.
@@ -54,10 +51,10 @@ switch process.platform
 #
 execSync = (command, options={}) ->
   results = execSyncToBuffer command, options
-  unless results.code
+  unless results.status
     return results.stdout
   throw
-    stderr: results.stdout
+    stderr: results.stderr
 
 #
 # WiFiLog:        Helper method for debugging and throwing
@@ -145,6 +142,7 @@ win32WirelessProfileBuilder = (ssid, security=false, key=null) ->
   # (3) Close the profile.
   #
   profile_content += "</WLANProfile>"
+  return profile_content
 
 
 
@@ -290,7 +288,7 @@ module.exports =
   #                host machine's wireless interface.  For this, we are using
   #                the NPM package node-wifiscanner2 by Particle (aka Spark).
   #
-  scanForWiFi: ->
+  scanForWiFi: (cb) ->
     unless WiFiControlSettings.iface?
       _msg = "You cannot scan for nearby WiFi networks without a valid wireless interface."
       WiFiLog _msg, true
@@ -332,34 +330,31 @@ module.exports =
           networks.push _network unless _network.ssid is "--"
         _msg = "Nearby WiFi APs successfully scanned (#{networks.length} found)."
         WiFiLog _msg
-        return {
+        cb null,
           success: true
           msg: _msg
           networks: networks
-        }
       else
-        scanRequest = new Future
-        WiFiScanner.scan (error, data) =>
-          if error
-            WiFiLog "Error: #{error}", true
-            scanRequest.return {
+        WiFiScanner.scan (err, networks) ->
+          if err
+            _msg = "We encountered an error while scanning for WiFi APs: #{error}"
+            WiFiLog _msg, true
+            cb err,
               success: false
-              msg: "We encountered an error while scanning for WiFi APs: #{error}"
-            }
-          else
-            _msg = "Nearby WiFi APs successfully scanned (#{data.length} found)."
-            WiFiLog _msg
-            scanRequest.return {
-              success: true
-              networks: data
               msg: _msg
-            }
-        return scanRequest.wait()
+          else
+            _msg = "Nearby WiFi APs successfully scanned (#{networks.length} found)."
+            WiFiLog _msg
+            cb null,
+              success: true
+              networks: networks
+              msg: _msg
     catch error
-      return {
+      _msg = "We encountered an error while scanning for WiFi APs: #{error}"
+      WiFiLog _msg, true
+      cb error,
         success: false
-        msg: "We encountered an error while scanning for WiFi APs: #{error}"
-      }
+        msg: _msg
 
   #
   # connectToAP:    Direct the host machine to connect to a specific WiFi AP
@@ -438,30 +433,28 @@ module.exports =
           #
           ssid =
             plaintext: _ap.ssid
-            hex = ""
+            hex: ""
           for i in [0..ssid.plaintext.length-1]
             ssid.hex += ssid.plaintext.charCodeAt(i).toString(16)
           #
           # (2) Generate XML content for the provided parameters.
           #
+          xmlContent = null
           if _ap.password.length
             xmlContent = win32WirelessProfileBuilder ssid, "wpa2", _ap.password
           else
             xmlContent = win32WirelessProfileBuilder ssid
           #
-          # (3) Write to XML file; wait until done.
+          # (3) Write xmlContent to XML wireless profile file.
           #
-          xmlWriteRequest = new Future
-          fs.writeFile "#{_ap.ssid}.xml", xmlContent, (err) ->
-            if err?
-              WiFiLog err, true
-              xmlWriteRequest.return false
-            else
-              xmlWriteRequest.return true
-          if !xmlWriteRequest.wait()
+          try
+            fs.writeFileSync "#{_ap.ssid}.xml", xmlContent
+          catch error
+            _msg = "Encountered an error connecting to AP: #{error}"
+            WiFiLog _msg, true
             return {
               success: false
-              msg: "Encountered an error connecting to AP:"
+              msg: _msg
             }
           #
           # (4) Load new XML profile, and connect to SSID.
@@ -521,7 +514,12 @@ module.exports =
         # Otherwise, so far so good!
         #
         WiFiLog "Success!"
-
+      #
+      # If this is Windows, delete the wireless profile XML file we made.
+      #
+      if process.platform is "win32"
+        WiFiLog "Removing temporary WiFi config file..."
+        execSync "del \".\\#{_ap.ssid}.xml\""
       #
       # (5) Now we keep checking the state of the network interface
       #     to make sure it ends up actually being connected to the
