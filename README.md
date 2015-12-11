@@ -16,7 +16,7 @@ Maybe you have a SoftAP-based IoT toy, and you just need to make a thin download
 
   //  Try scanning for access points:
   WiFiControl.scanForWiFi( function(err, response) {
-    if (err) console.log(error);
+    if (err) console.log(err);
     console.log(response);
   });
 ```
