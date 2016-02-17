@@ -498,6 +498,13 @@ module.exports =
                 success: false
                 msg: _msg
               }
+            else if error.stderr.toString().search /Error:/ != -1
+              _msg = error.stderr.toString().trim()
+              WiFiLog _msg, true
+              return {
+                success: false
+                msg: _msg
+              }
             # Ignore nmcli's add/modify errors, this is a system bug
             unless /nmcli device wifi connect/.test(COMMANDS[com])
               WiFiLog error, true
