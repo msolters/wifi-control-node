@@ -43,7 +43,7 @@ switch process.platform
     parsePatterns.netsh_line = new RegExp /([^:]+): (.*)+/
   when "darwin"
     AirPort = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport"
-    parsePatterns.airport_line = new RegExp /(.*)+: (.*)+/
+    parsePatterns.airport_line = new RegExp /(.+): (.+)/
 
 
 #
