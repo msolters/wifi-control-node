@@ -38,9 +38,9 @@ powerStateMap =
   disabled: false # linux
 switch process.platform
   when "linux"
-    parsePatterns.nmcli_line = new RegExp /([^:]+):\s+(.*)+/
+    parsePatterns.nmcli_line = new RegExp /([^:]+):\s+(.+)/
   when "win32"
-    parsePatterns.netsh_line = new RegExp /([^:]+): (.*)+/
+    parsePatterns.netsh_line = new RegExp /([^:]+): (.+)/
   when "darwin"
     AirPort = "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport"
     parsePatterns.airport_line = new RegExp /(.+): (.+)/
