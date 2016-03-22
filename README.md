@@ -206,6 +206,10 @@ This package has been developed to be compatible with Node v0.10.36 because it i
 
 
 ## Change Log
+### v1.0.2
+3/22/2016
+*  Fix multiple instances of catastrophic backtracking in RegExp objects.
+
 ### v1.0.1
 9/27/2015
 *  Documentation fixes.
