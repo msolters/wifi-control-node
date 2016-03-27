@@ -96,3 +96,38 @@ module.exports =
       interfaceState.connection = connectionStateMap[ VALUE ]
       interfaceState.ssid = null
     return interfaceState
+
+  #
+  #
+  #
+  scanForWiFi: ->
+    #
+    # Use nmcli to list visible wifi networks.
+    #
+    scanResults = @execSync "nmcli -m multiline device wifi list"
+    #
+    # Parse the results into an array of AP objects to match
+    # the structure found in node-wifiscanner2 for win32 and MacOS.
+    #
+    networks = []
+    for nwk, c in scanResults.split '*:'
+      continue if c is 0
+      _network = {}
+      for ln, k in nwk.split '\n'
+        try
+          parsedLine = parsePatterns.nmcli_line.exec( ln.trim() )
+          KEY = parsedLine[1]
+          VALUE = parsedLine[2]
+        catch error
+          continue  # this line was not a key: value pair!
+        switch KEY
+          when "SSID"
+            _network.ssid = String VALUE
+          when "CHAN"
+            _network.channel = String VALUE
+          when "SIGNAL"
+            _network.signal_level = String VALUE
+          when "SECURITY"
+            _network.security = String VALUE
+      networks.push _network unless _network.ssid is "--"
+    return networks

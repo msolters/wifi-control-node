@@ -212,47 +212,19 @@ module.exports =
   #                a user provided callback, cb(err, resp).
   #
   scanForWiFi: (cb) ->
-    unless WiFiControlSettings.iface?
+    unless private_context.WiFiControlSettings.iface?
       _msg = "You cannot scan for nearby WiFi networks without a valid wireless interface."
-      WiFiLog _msg, true
+      private_context.WiFiLog _msg, true
       return {
         success: false
         msg: _msg
       }
     try
-      WiFiLog "Scanning for nearby WiFi Access Points..."
+      private_context.WiFiLog "Scanning for nearby WiFi Access Points..."
       if process.platform is "linux"
-        #
-        # Use nmcli to list visible wifi networks.
-        #
-        scanResults = execSync "nmcli -m multiline device wifi list"
-        #
-        # Parse the results into an array of AP objects to match
-        # the structure found in node-wifiscanner2 for win32 and MacOS.
-        #
-        networks = []
-        for nwk, c in scanResults.split '*:'
-          continue if c is 0
-          _network = {}
-          for ln, k in nwk.split '\n'
-            try
-              parsedLine = parsePatterns.nmcli_line.exec( ln.trim() )
-              KEY = parsedLine[1]
-              VALUE = parsedLine[2]
-            catch error
-              continue  # this line was not a key: value pair!
-            switch KEY
-              when "SSID"
-                _network.ssid = String VALUE
-              when "CHAN"
-                _network.channel = String VALUE
-              when "SIGNAL"
-                _network.signal_level = String VALUE
-              when "SECURITY"
-                _network.security = String VALUE
-          networks.push _network unless _network.ssid is "--"
+        networks = os_instructions.scanForWiFi.apply private_context
         _msg = "Nearby WiFi APs successfully scanned (#{networks.length} found)."
-        WiFiLog _msg
+        private_context.WiFiLog _msg
         cb null,
           success: true
           msg: _msg
@@ -261,20 +233,20 @@ module.exports =
         WiFiScanner.scan (err, networks) ->
           if err
             _msg = "We encountered an error while scanning for WiFi APs: #{error}"
-            WiFiLog _msg, true
+            private_context.WiFiLog _msg, true
             cb err,
               success: false
               msg: _msg
           else
             _msg = "Nearby WiFi APs successfully scanned (#{networks.length} found)."
-            WiFiLog _msg
+            private_context.WiFiLog _msg
             cb null,
               success: true
               networks: networks
               msg: _msg
     catch error
       _msg = "We encountered an error while scanning for WiFi APs: #{error}"
-      WiFiLog _msg, true
+      private_context.WiFiLog _msg, true
       cb error,
         success: false
         msg: _msg
