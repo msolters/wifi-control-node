@@ -70,3 +70,44 @@ module.exports =
       }
     interfaceState.power = powerStateMap[ VALUE ]
     return interfaceState
+
+  #
+  # For MacOS, we will use networksetup
+  #
+  connectToAP: ( _ap ) ->
+    #
+    # (1)
+    #
+    COMMANDS =
+      connect: "networksetup -setairportnetwork #{@WiFiControlSettings.iface} \"#{_ap.ssid}\""
+    if _ap.password.length
+      COMMANDS.connect += " \"#{_ap.password}\""
+    connectToAPChain = [ "connect" ]
+
+    #
+    # (2) Connect to AP using using the above constructed
+    #     command chain.
+    #
+    for com in connectToAPChain
+      @WiFiLog "Executing:\t#{COMMANDS[com]}"
+      #
+      # Run the command, handle any errors that get thrown.
+      #
+      try
+        stdout = @execSync COMMANDS[com]
+      catch error
+
+      #
+      # Listen for MacOS-specific errors.
+      #
+      if stdout is "Could not find network #{_ap.ssid}."
+        _msg = "Error: No network called #{_ap.ssid} could be found."
+        @WiFiLog _msg, true
+        return {
+          success: false
+          msg: _msg
+        }
+      #
+      # Otherwise, so far so good!
+      #
+      WiFiLog "Success!"

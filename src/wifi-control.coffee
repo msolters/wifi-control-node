@@ -3,94 +3,9 @@
 #
 # node-wifiscanner2 is a great NPM package for scanning WiFi APs (for Windows & Mac -- it REQUIRES sudo on Linux).
 WiFiScanner = require 'node-wifiscanner2'
-# On Windows, we need write .xml files to create network profiles :(
-fs = require 'fs'
 # To execute commands in the host machine, we'll use sync-exec.
 # Note: In nodejs >= v0.12 this will default to child_process.execSync.
 execSyncToBuffer = require 'sync-exec'
-
-
-#
-# Local helper functions.
-#
-
-
-#
-# win32WirelessProfileBuilder:    This method generates the Windows wireless profile
-#                       XML file corresponding to the ssid, security, and
-#                       passphrase (key).
-#
-win32WirelessProfileBuilder = (ssid, security=false, key=null) ->
-  #
-  # (1) First, construct the header which specifies the SSID.
-  #
-  profile_content =   "<?xml version=\"1.0\"?>
-                      <WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\">
-                        <name>#{ssid.plaintext}</name>
-                        <SSIDConfig>
-                          <SSID>
-                            <hex>#{ssid.hex}</hex>
-                            <name>#{ssid.plaintext}</name>
-                          </SSID>
-                        </SSIDConfig>"
-  #
-  # (2) Next, depending on security, fill out the encryption-specific data.
-  #
-  switch security
-    when "wpa"
-      profile_content +=   "<connectionType>ESS</connectionType>
-                            <connectionMode>auto</connectionMode>
-                            <autoSwitch>true</autoSwitch>
-                            <MSM>
-                                <security>
-                                    <authEncryption>
-                                        <authentication>WPAPSK</authentication>
-                                        <encryption>TKIP</encryption>
-                                        <useOneX>false</useOneX>
-                                    </authEncryption>
-                                    <sharedKey>
-                                      <keyType>passPhrase</keyType>
-                                      <protected>false</protected>
-                                      <keyMaterial>#{key}</keyMaterial>
-                                    </sharedKey>
-                                </security>
-                            </MSM>"
-    when "wpa2"
-      profile_content +=   "<connectionType>ESS</connectionType>
-                            <connectionMode>auto</connectionMode>
-                            <autoSwitch>true</autoSwitch>
-                            <MSM>
-                              <security>
-                                <authEncryption>
-                                  <authentication>WPA2PSK</authentication>
-                                  <encryption>AES</encryption>
-                                  <useOneX>false</useOneX>
-                                </authEncryption>
-                                <sharedKey>
-                                  <keyType>passPhrase</keyType>
-                                  <protected>false</protected>
-                                  <keyMaterial>#{key}</keyMaterial>
-                                </sharedKey>
-                              </security>
-                            </MSM>"
-    else
-      # Open networks!
-      profile_content +=   "<connectionType>ESS</connectionType>
-                            <connectionMode>manual</connectionMode>
-                            <MSM>
-                              <security>
-                                <authEncryption>
-                                  <authentication>open</authentication>
-                                  <encryption>none</encryption>
-                                  <useOneX>false</useOneX>
-                                </authEncryption>
-                              </security>
-                            </MSM>"
-  #
-  # (3) Close the profile.
-  #
-  profile_content += "</WLANProfile>"
-  return profile_content
 
 
 #
@@ -258,9 +173,9 @@ module.exports =
   #                 connects to an open network.
   #
   connectToAP: ( _ap ) ->
-    unless WiFiControlSettings.iface?
+    unless private_context.WiFiControlSettings.iface?
       _msg = "You cannot connect to a WiFi network without a valid wireless interface."
-      WiFiLog _msg, true
+      private_context.WiFiLog _msg, true
       return {
         success: false
         msg: _msg
@@ -279,155 +194,18 @@ module.exports =
       #
       unless _ap.password?
         _ap.password = ""
-      #
-      # (3) Construct an OS-specific command chain for connecting to
-      #     a wireless AP.
-      #
-      switch process.platform
-        #
-        # With Linux, we can use nmcli to do the heavy lifting.
-        #
-        #
-        # (1) Does a connection that matches the name of the ssid
-        #     already exist?
-        #
-        when "linux"
-          COMMANDS =
-            delete: "nmcli connection delete \"#{_ap.ssid}\""
-            connect: "nmcli device wifi connect \"#{_ap.ssid}\""
-          if _ap.password.length
-            COMMANDS.connect += " password \"#{_ap.password}\""
-          try
-            stdout = execSync "nmcli connection show \"#{_ap.ssid}\""
-            ssidExist = true if stdout.length
-          catch error
-            ssidExist = false
-          #
-          # (2) Delete the old connection, if there is one.
-          #     Then, create a new connection.
-          #
-          connectToAPChain = []
-          if ssidExist
-            WiFiLog "It appears there is already a connection for this SSID."
-            connectToAPChain.push "delete"
-          connectToAPChain.push "connect"
-        #
-        # Windows is a special child.  While the netsh command provides us
-        # quite a bit of functionality, the real kicker is that to connect
-        # to a given network using it, we must first have a so-called wireless
-        # profile for that network in the machine.
-        # This can be done ONLY through the GUI, or by loading an XML file which
-        # must already contain the SSID information in plaintext and as HEX.
-        # Once we create this XML file, we will add the profile inside, and then
-        # connect to it all using the netsh command.
-        #
-        when "win32"
-          WiFiLog "Generating win32 wireless profile..."
-          #
-          # (1) Convert SSID to Hex
-          #
-          ssid =
-            plaintext: _ap.ssid
-            hex: ""
-          for i in [0..ssid.plaintext.length-1]
-            ssid.hex += ssid.plaintext.charCodeAt(i).toString(16)
-          #
-          # (2) Generate XML content for the provided parameters.
-          #
-          xmlContent = null
-          if _ap.password.length
-            xmlContent = win32WirelessProfileBuilder ssid, "wpa2", _ap.password
-          else
-            xmlContent = win32WirelessProfileBuilder ssid
-          #
-          # (3) Write xmlContent to XML wireless profile file.
-          #
-          try
-            fs.writeFileSync "#{_ap.ssid}.xml", xmlContent
-          catch error
-            _msg = "Encountered an error connecting to AP: #{error}"
-            WiFiLog _msg, true
-            return {
-              success: false
-              msg: _msg
-            }
-          #
-          # (4) Load new XML profile, and connect to SSID.
-          #
-          COMMANDS =
-            loadProfile: "netsh #{WiFiControlSettings.iface} add profile filename=\"#{_ap.ssid}.xml\""
-            connect: "netsh #{WiFiControlSettings.iface} connect ssid=\"#{_ap.ssid}\" name=\"#{_ap.ssid}\""
-          connectToAPChain = [ "loadProfile", "connect" ]
-        when "darwin" # i.e., MacOS
-          COMMANDS =
-            connect: "networksetup -setairportnetwork #{WiFiControlSettings.iface} \"#{_ap.ssid}\""
-          if _ap.password.length
-            COMMANDS.connect += " \"#{_ap.password}\""
-          connectToAPChain = [ "connect" ]
 
       #
-      # (4) Connect to AP using using the above constructed
-      #     command chain.
+      # (3) Do the OS-specific dirty work
       #
-      for com in connectToAPChain
-        WiFiLog "Executing:\t#{COMMANDS[com]}"
-        #
-        # Run the command, handle any errors that get thrown.
-        #
-        try
-          stdout = execSync COMMANDS[com]
-        catch error
-          # Handle Linux errors:
-          if process.platform is "linux"
-            if error.stderr.toString().trim() is "Error: No network with SSID '#{_ap.ssid}' found."
-              _msg = "Error: No network called #{_ap.ssid} could be found."
-              WiFiLog _msg, true
-              return {
-                success: false
-                msg: _msg
-              }
-            else if error.stderr.toString().search /Error:/ != -1
-              _msg = error.stderr.toString().trim()
-              WiFiLog _msg, true
-              return {
-                success: false
-                msg: _msg
-              }
-            # Ignore nmcli's add/modify errors, this is a system bug
-            unless /nmcli device wifi connect/.test(COMMANDS[com])
-              WiFiLog error, true
-              return {
-                success: false
-                msg: error
-              }
-        #
-        # If we've made it this far, check the output.
-        #
-        switch process.platform
-          when "darwin"
-            if stdout is "Could not find network #{_ap.ssid}."
-              _msg = "Error: No network called #{_ap.ssid} could be found."
-              WiFiLog _msg, true
-              return {
-                success: false
-                msg: _msg
-              }
-        #
-        # Otherwise, so far so good!
-        #
-        WiFiLog "Success!"
+      os_instructions.connectToAP.call private_context, _ap
+
       #
-      # If this is Windows, delete the wireless profile XML file we made.
-      #
-      if process.platform is "win32"
-        WiFiLog "Removing temporary WiFi config file..."
-        execSync "del \".\\#{_ap.ssid}.xml\""
-      #
-      # (5) Now we keep checking the state of the network interface
+      # (4) Now we keep checking the state of the network interface
       #     to make sure it ends up actually being connected to the
       #     desired SSID.
       #
-      WiFiLog "Waiting for connection attempt to settle..."
+      private_context.WiFiLog "Waiting for connection attempt to settle..."
       while true
         ifaceState = @getIfaceState()
         if ifaceState.success
@@ -435,7 +213,7 @@ module.exports =
             break
           else if ifaceState.connection is "disconnected"
             _msg = "Error: Interface is not currently connected to any wireless AP."
-            WiFiLog _msg, true
+            private_context.WiFiLog _msg, true
             return {
               success: false
               msg: _msg
@@ -445,7 +223,7 @@ module.exports =
         # We're connected, and on the right SSID!  Success.
         #
         _msg = "Successfully connected to #{_ap.ssid}!"
-        WiFiLog _msg
+        private_context.WiFiLog _msg
         return {
           success: true
           msg: _msg
@@ -455,14 +233,14 @@ module.exports =
         # We're connected, but to the wrong SSID!
         #
         _msg = "Error: Interface is currently connected to #{ifaceState.ssid}"
-        WiFiLog _msg, true
+        private_context.WiFiLog _msg, true
         return {
           success: false
           msg: _msg
         }
     catch error
       _msg = "Encountered an error while connecting to #{_ap.ssid}: #{error}"
-      WiFiLog _msg, true
+      private_context.WiFiLog _msg, true
       return {
         success: false
         msg: _msg
