@@ -219,15 +219,23 @@ module.exports =
       request_msg = "WiFi connection request to \"#{_ap.ssid}\" has been processed."
       CXT.WiFiLog request_msg
 
+      #
+      # (5) check_iface is a helper function we use to repeatedly
+      #     check on the ifaceState using setTimeouts.  This containment
+      #     is important because it makes it possible to implement
+      #     connectionTimeout.
+      #
       t0 = new Date()
       check_iface = (_ap, cb) =>
         ifaceState = @getIfaceState()
-        if ifaceState.success
+        # If the connection is settled, check if we're connected
+        # to the requested _ap.
+        if ifaceState.success and ((ifaceState.connection is "connected") or (ifaceState.connection is "disconnected"))
           if ifaceState.ssid is _ap.ssid
             #
             # We're connected, and on the right SSID!  Success.
             #
-            _msg = "Successfully connected to \"#{_ap.ssid}\"!"
+            _msg = "Successfully connected to \"#{_ap.ssid}\""
             CXT.WiFiLog _msg
             cb null,
               success: true
@@ -254,6 +262,7 @@ module.exports =
               success: false
               msg: "Error: Could not connect to #{_ap.ssid}"
           return
+
         # Attempt to confirm connection up to connectionTimeout milliseconds
         if (new Date() - t0) < CXT.WiFiControlSettings.connectionTimeout
           setTimeout ->
@@ -263,6 +272,11 @@ module.exports =
           cb "Connection confirmation timed out. (#{CXT.WiFiControlSettings.connectionTimeout}ms)",
             success: false,
             msg: "Error: Could not connect to #{_ap.ssid}"
+
+      #
+      # (6) Start the check_iface loop
+      #     This will eventually return the user's callback "cb".
+      #
       check_iface _ap, cb
 
     catch error
