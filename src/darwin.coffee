@@ -41,6 +41,7 @@ module.exports =
   # For MacOS, parse `airport -I` to acquire networking interface data.
   #
   getIfaceState: ->
+    interfaceState = {}
     connectionData = @execSync "#{AirPortBinary} -I"
     for ln, k in connectionData.split '\n'
       try
@@ -110,4 +111,4 @@ module.exports =
       #
       # Otherwise, so far so good!
       #
-      WiFiLog "Success!"
+      @WiFiLog "Success!"

@@ -215,7 +215,7 @@ module.exports =
       #
       # Otherwise, so far so good!
       #
-      WiFiLog "Success!"
+      @WiFiLog "Success!"
 
     #
     # If this is Windows, delete the wireless profile XML file we made.

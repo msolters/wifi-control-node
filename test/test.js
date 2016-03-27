@@ -7,7 +7,6 @@ WiFiControl.init({
 
 console.log( WiFiControl.getIfaceState() );
 
-
 WiFiControl.scanForWiFi( function(error, response) {
   //if (error) console.log(error);
   console.log(response);
