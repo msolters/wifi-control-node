@@ -123,8 +123,8 @@ module.exports =
     #     Airport service
     #
     COMMANDS =
-      enableAirport: "networksetup -setairportpower #{WiFiControlSettings.iface} on"
-      disableAirport: "networksetup -setairportpower #{WiFiControlSettings.iface} off"
+      enableAirport: "networksetup -setairportpower #{@WiFiControlSettings.iface} on"
+      disableAirport: "networksetup -setairportpower #{@WiFiControlSettings.iface} off"
     resetWiFiChain = [ "disableAirport", "enableAirport" ]
 
     #
