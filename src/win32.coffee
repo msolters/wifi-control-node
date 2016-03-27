@@ -195,8 +195,8 @@ module.exports =
     # (4) Load new XML profile, and connect to SSID.
     #
     COMMANDS =
-      loadProfile: "netsh #{WiFiControlSettings.iface} add profile filename=\"#{_ap.ssid}.xml\""
-      connect: "netsh #{WiFiControlSettings.iface} connect ssid=\"#{_ap.ssid}\" name=\"#{_ap.ssid}\""
+      loadProfile: "netsh #{@WiFiControlSettings.iface} add profile filename=\"#{_ap.ssid}.xml\""
+      connect: "netsh #{@WiFiControlSettings.iface} connect ssid=\"#{_ap.ssid}\" name=\"#{_ap.ssid}\""
     connectToAPChain = [ "loadProfile", "connect" ]
 
     #
