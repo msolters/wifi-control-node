@@ -16,7 +16,7 @@ Maybe you have a SoftAP-based IoT toy, and you just need to make a thin download
 
   //  Try scanning for access points:
   WiFiControl.scanForWiFi( function(err, response) {
-    if (err) console.log(error);
+    if (err) console.log(err);
     console.log(response);
   });
 ```
@@ -47,11 +47,20 @@ You may encounter errors if you use this module on a system lacking these comman
 
 **A Note About Synchronicity** (*Synchronicity!*)
 
-Almost all native `WiFiControl` methods are synchronous.  Calls to them will block.  This is a decision made that reflects the fact that low-level system operations such as starting and stopping network interfaces should not be happening simultaneously.  Plus, there's lots of situations where you need to wait -- you can't communicate over a network, for instance, until you're totally sure you've fully associated with the router.
+Some `WiFiControl` methods are synchronous, some are not.
 
-There are only two exceptions to this.
+Synchronous
+---
+* `WiFiControl.init( settings )`
+* `WiFiControl.configure( settings )`
+* `WiFiControl.findInterface( iface )`
+* `WiFiControl.getIfaceState()`
+
+Asynchronous
+---
 *  `WiFiControl.scanForWiFi( callback )` - this can take a while (1-10 seconds) so we use a callback to return the scan results.
 *  `WiFiControl.connectToAP( ap, callback )` - this can sometimes take several minutes so we use a callback to report on how it went.
+*  `WiFiControl.resetWiFi( callback )` - powering down and back up can sometimes take a while, depending on your wireless card, so this method will return your callback when it is complete.
 
 ---
 
@@ -148,11 +157,25 @@ Example output:
 
 ## Reset Wireless Interface
 ```js
-  WiFiControl.resetWiFi();
+  WiFiControl.resetWiFi( function(err, response) {
+    if (err) console.log(err);
+    console.log(response);
+  } );
 ```
 After connecting or disconnecting to various APs programmatically (which may or may not succeed) it is useful to have a method by which to reset the network interface to system defaults.
 
-This method attempts to do that, either by disconnecting the interface or restarting the system's network manager, if one exists.  It will report either success or failure in the return message.
+This method attempts to do that, either by disconnecting the interface or restarting the system's network manager, if one exists.  
+
+> Note this is not always bound to have consistent results across all operating systems and the user is encouraged to verify the results in their application code if using this command to automate a procedure.  For example, some flavors of Windows may reset by reconnecting to the default WiFi network, while some flavors may simply disconnect completely.
+
+Example output:
+
+```js
+  {
+    success: true,
+    msg: 'Success!  Wireless interface is now reset.'
+  }
+```
 
 ## Get Connection State
 ```js
@@ -224,7 +247,8 @@ This package has been developed to be compatible with Node v0.10.36 because it i
 ### v1.0.3
 3/27/2016
 *  Replace infinite loops with (customizable) timeouts
-*  `WiFiControl.connectToAP(ap, cb)` is now asynchronous.
+*  `WiFiControl.connectToAP(ap, cb)` is now asynchronous.  **This is a breaking change if it is currently implemented in user application code as a sync method.**
+*  `WiFiControl.resetWiFi(cb)` is now asynchronous.  **This is a breaking change if it is currently implemented in user application code as a sync method.**
 *  OS-specific source code has been refactored into separate files (`darwin.coffee`, `win32.coffee`, `linux.coffee`)
 
 ### v1.0.2
