@@ -1,5 +1,5 @@
 #
-# NPM Dependencies.
+# (1) Load NPM Dependencies.
 #
 # node-wifiscanner2 is a great NPM package for scanning WiFi APs (for Windows & Mac -- it REQUIRES sudo on Linux).
 WiFiScanner = require 'node-wifiscanner2'
@@ -8,24 +8,14 @@ WiFiScanner = require 'node-wifiscanner2'
 execSyncToBuffer = require 'sync-exec'
 
 
-#
-# ( ) Load OS-specific instructions from file.
-#
-switch process.platform
-  when "linux"
-    os_instructions = require './linux.js'
-  when "win32"
-    os_instructions = require './win32.js'
-  when "darwin"
-    os_instructions = require './darwin.js'
-  else
-    WiFiLog "Unrecognized operating system.", true
-    process.exit()
 
 #
-# ( ) Helper methods common to all OS
+# (2) We use this CXT variable to supply the context
+#     for methods defined inside the OS-specific files.
+#     This provides a common context without polluting
+#     the global namespace.
 #
-private_context =
+CXT =
   #
   # Define WiFiControl settings.
   #
@@ -55,10 +45,23 @@ private_context =
     else
       console.log "WiFiControl: #{msg}" if @WiFiControlSettings.debug
 
+#
+# (3) Load OS-specific instructions from file.
+#
+switch process.platform
+  when "linux"
+    os_instructions = require './linux.js'
+  when "win32"
+    os_instructions = require './win32.js'
+  when "darwin"
+    os_instructions = require './darwin.js'
+  else
+    CXT.WiFiLog "Unrecognized operating system.", true
+    process.exit()
 
 
 #
-# WiFiControl Methods.
+# (4) Define WiFiControl Methods.
 #
 module.exports =
   #
@@ -85,12 +88,12 @@ module.exports =
   configure: ( settings={} ) ->
     # Configure debug settings.
     if settings.debug?
-      private_context.WiFiControlSettings.debug = settings.debug
-      private_context.WiFiLog "Debug mode set to: #{settings.debug}"
+      CXT.WiFiControlSettings.debug = settings.debug
+      CXT.WiFiLog "Debug mode set to: #{settings.debug}"
     if settings.connectionTimeout?
       settings.connectionTimeout = parseInt settings.connectionTimeout
-      private_context.WiFiControlSettings.connectionTimeout = settings.connectionTimeout
-      private_context.WiFiLog "AP connection attempt timeout set to: #{settings.connectionTimeout}ms"
+      CXT.WiFiControlSettings.connectionTimeout = settings.connectionTimeout
+      CXT.WiFiLog "AP connection attempt timeout set to: #{settings.connectionTimeout}ms"
     # Set network interface to settings.iface.
     @findInterface settings.iface if settings.iface?
 
@@ -103,8 +106,8 @@ module.exports =
       # If user is forcing an interface manually, do that.
       if iface?
         _msg = "Wireless interface manually set to #{iface}."
-        private_context.WiFiLog _msg
-        private_context.WiFiControlSettings.iface = iface
+        CXT.WiFiLog _msg
+        CXT.WiFiControlSettings.iface = iface
         return {
           success: true
           msg: _msg
@@ -113,13 +116,13 @@ module.exports =
       #
       # (1) First, we find the wireless card interface on the host.
       #
-      private_context.WiFiLog "Determining system wireless interface..."
-      interfaceResults = os_instructions.autoFindInterface.call private_context
-      private_context.WiFiControlSettings.iface = interfaceResults.interface
+      CXT.WiFiLog "Determining system wireless interface..."
+      interfaceResults = os_instructions.autoFindInterface.call CXT
+      CXT.WiFiControlSettings.iface = interfaceResults.interface
       return interfaceResults
     catch error
       _msg = "Encountered an error while searching for wireless interface: #{error}"
-      private_context.WiFiLog _msg, true
+      CXT.WiFiLog _msg, true
       return {
         success: false
         msg: _msg
@@ -134,19 +137,19 @@ module.exports =
   #                a user provided callback, cb(err, resp).
   #
   scanForWiFi: (cb) ->
-    unless private_context.WiFiControlSettings.iface?
+    unless CXT.WiFiControlSettings.iface?
       _msg = "You cannot scan for nearby WiFi networks without a valid wireless interface."
-      private_context.WiFiLog _msg, true
+      CXT.WiFiLog _msg, true
       return {
         success: false
         msg: _msg
       }
     try
-      private_context.WiFiLog "Scanning for nearby WiFi Access Points..."
+      CXT.WiFiLog "Scanning for nearby WiFi Access Points..."
       if process.platform is "linux"
-        networks = os_instructions.scanForWiFi.apply private_context
+        networks = os_instructions.scanForWiFi.apply CXT
         _msg = "Nearby WiFi APs successfully scanned (#{networks.length} found)."
-        private_context.WiFiLog _msg
+        CXT.WiFiLog _msg
         cb null,
           success: true
           msg: _msg
@@ -155,20 +158,20 @@ module.exports =
         WiFiScanner.scan (err, networks) ->
           if err
             _msg = "We encountered an error while scanning for WiFi APs: #{error}"
-            private_context.WiFiLog _msg, true
+            CXT.WiFiLog _msg, true
             cb err,
               success: false
               msg: _msg
           else
             _msg = "Nearby WiFi APs successfully scanned (#{networks.length} found)."
-            private_context.WiFiLog _msg
+            CXT.WiFiLog _msg
             cb null,
               success: true
               networks: networks
               msg: _msg
     catch error
       _msg = "We encountered an error while scanning for WiFi APs: #{error}"
-      private_context.WiFiLog _msg, true
+      CXT.WiFiLog _msg, true
       cb error,
         success: false
         msg: _msg
@@ -180,9 +183,9 @@ module.exports =
   #                 connects to an open network.
   #
   connectToAP: ( _ap, cb ) ->
-    unless private_context.WiFiControlSettings.iface?
+    unless CXT.WiFiControlSettings.iface?
       _msg = "You cannot connect to a WiFi network without a valid wireless interface."
-      private_context.WiFiLog _msg, true
+      CXT.WiFiLog _msg, true
       return {
         success: false
         msg: _msg
@@ -206,7 +209,7 @@ module.exports =
       #
       # (3) Do the OS-specific dirty work
       #
-      os_instructions.connectToAP.call private_context, _ap
+      os_instructions.connectToAP.call CXT, _ap
 
       #
       # (4) Now we keep checking the state of the network interface
@@ -214,7 +217,7 @@ module.exports =
       #     desired SSID.
       #
       request_msg = "WiFi connection request to \"#{_ap.ssid}\" has been processed."
-      private_context.WiFiLog request_msg
+      CXT.WiFiLog request_msg
 
       t0 = new Date()
       check_iface = (_ap, cb) =>
@@ -225,7 +228,7 @@ module.exports =
             # We're connected, and on the right SSID!  Success.
             #
             _msg = "Successfully connected to \"#{_ap.ssid}\"!"
-            private_context.WiFiLog _msg
+            CXT.WiFiLog _msg
             cb null,
               success: true
               msg: _msg
@@ -234,7 +237,7 @@ module.exports =
             # Device is not connected to any known SSID
             #
             _msg = "Error: Interface is not currently connected to any wireless AP."
-            private_context.WiFiLog _msg, true
+            CXT.WiFiLog _msg, true
             cb _msg,
               success: false
               msg: "Error: Could not connect to #{_ap.ssid}"
@@ -243,7 +246,7 @@ module.exports =
             # We're connected, but to the wrong SSID!
             #
             _msg = "Error: Interface is currently connected to \"#{ifaceState.ssid}\""
-            private_context.WiFiLog _msg, true
+            CXT.WiFiLog _msg, true
             connect_to_ap_result =
               success: false
               msg: _msg
@@ -252,19 +255,19 @@ module.exports =
               msg: "Error: Could not connect to #{_ap.ssid}"
           return
         # Attempt to confirm connection up to connectionTimeout milliseconds
-        if (new Date() - t0) < private_context.WiFiControlSettings.connectionTimeout
+        if (new Date() - t0) < CXT.WiFiControlSettings.connectionTimeout
           setTimeout ->
             check_iface _ap, cb
           , 250
         else
-          cb "Connection confirmation timed out. (#{private_context.WiFiControlSettings.connectionTimeout}ms)",
+          cb "Connection confirmation timed out. (#{CXT.WiFiControlSettings.connectionTimeout}ms)",
             success: false,
             msg: "Error: Could not connect to #{_ap.ssid}"
       check_iface _ap, cb
 
     catch error
       _msg = "Encountered an error while connecting to \"#{_ap.ssid}\": #{error}"
-      private_context.WiFiLog _msg, true
+      CXT.WiFiLog _msg, true
       cb error,
         success: false
         msg: _msg
@@ -345,14 +348,14 @@ module.exports =
       #
       # Return network interface state.
       #
-      interfaceState = os_instructions.getIfaceState.call private_context
+      interfaceState = os_instructions.getIfaceState.call CXT
       unless interfaceState.success is false
         interfaceState.success =  true
-        interfaceState.msg = "Successfully acquired state of network interface #{private_context.WiFiControlSettings.iface}."
+        interfaceState.msg = "Successfully acquired state of network interface #{CXT.WiFiControlSettings.iface}."
       return interfaceState
     catch error
       _msg = "Encountered an error while acquiring network interface connection state: #{error}"
-      private_context.WiFiLog _msg, true
+      CXT.WiFiLog _msg, true
       return {
         success: false
         msg: _msg
