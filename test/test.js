@@ -14,7 +14,7 @@ WiFiControl.scanForWiFi( function(error, response) {
 
 var test_ap = {
   ssid: "And We Will Call It....THIS LAN!",
-  password: "poopscuttld"
+  password: "poopscuttle"
 };
 
 WiFiControl.connectToAP( test_ap, function(error, response) {

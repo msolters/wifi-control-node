@@ -6,7 +6,6 @@ WiFiScanner = require 'node-wifiscanner2'
 # To execute commands in the host machine, we'll use sync-exec.
 # Note: In nodejs >= v0.12 this will default to child_process.execSync.
 execSyncToBuffer = require 'sync-exec'
-events = require 'events'
 
 
 #
@@ -62,8 +61,6 @@ private_context =
 # WiFiControl Methods.
 #
 module.exports =
-  events: new events.EventEmitter()
-
   #
   # init:   Initial setup.  This is almost the same as config, except it
   #         adds the additional step of attempting to automatically locate
