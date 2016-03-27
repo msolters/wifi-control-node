@@ -198,3 +198,26 @@ module.exports =
       # Otherwise, so far so good!
       #
       @WiFiLog "Success!"
+
+  #
+  # With Linux, we just restart the network-manager, which will
+  # immediately force its own preferences and defaults.
+  #
+  resetWiFi: ->
+    #
+    # (1) Construct a chain of commands to restart
+    #     the Network Manager service
+    #
+    COMMANDS =
+      disableNetworking: "nmcli networking off"
+      enableNetworking: "nmcli networking on"
+    resetWiFiChain = [ "disableNetworking", "enableNetworking" ]
+
+    #
+    # (2) Execute each command.
+    #
+    for com in resetWiFiChain
+      @WiFiLog "Executing:\t#{COMMANDS[com]}"
+      stdout = @execSync COMMANDS[com]
+      _msg = "Success!"
+      @WiFiLog _msg

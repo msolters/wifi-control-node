@@ -217,8 +217,28 @@ module.exports =
       #
       @WiFiLog "Success!"
 
-    #
-    # If this is Windows, delete the wireless profile XML file we made.
-    #
     @WiFiLog "Removing temporary WiFi config file..."
     @execSync "del \".\\#{_ap.ssid}.xml\""
+
+  #
+  # In Windows, we are just disconnecting from the current network.
+  # This typically causes the wireless to then re-connect to its first
+  # preference.
+  #
+  resetWiFi: ->
+    #
+    # (1) Construct a chain of commands to disconnect
+    #     from the current WiFi network
+    #
+    COMMANDS =
+      disconnect: "netsh #{@WiFiControlSettings.iface} disconnect"
+    resetWiFiChain = [ "disconnect" ]
+
+    #
+    # (2) Execute each command.
+    #
+    for com in resetWiFiChain
+      @WiFiLog "Executing:\t#{COMMANDS[com]}"
+      stdout = @execSync COMMANDS[com]
+      _msg = "Success!"
+      @WiFiLog _msg

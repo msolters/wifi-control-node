@@ -136,7 +136,7 @@ module.exports =
   #                This is an async method and it will return its results through
   #                a user provided callback, cb(err, resp).
   #
-  scanForWiFi: (cb) ->
+  scanForWiFi: ( cb ) ->
     unless CXT.WiFiControlSettings.iface?
       _msg = "You cannot scan for nearby WiFi networks without a valid wireless interface."
       CXT.WiFiLog _msg, true
@@ -290,69 +290,58 @@ module.exports =
   # resetWiFi:    Attempt to return the host machine's wireless to whatever
   #               network it connects to by default.
   #
-  resetWiFi: ->
+  resetWiFi: ( cb ) ->
     try
       #
       # (1) Choose commands based on OS.
       #
-      switch process.platform
-        when "linux"
-          # With Linux, we just restart the network-manager, which will
-          # immediately force its own preferences and defaults.
-          COMMANDS =
-            disableNetworking: "nmcli networking off"
-            enableNetworking: "nmcli networking on"
-          resetWiFiChain = [ "disableNetworking", "enableNetworking" ]
-        when "win32"
-          # In Windows, we are just disconnecting from the current network.
-          # This typically causes the wireless to then re-connect to its first
-          # preference.
-          COMMANDS =
-            disconnect: "netsh #{WiFiControlSettings.iface} disconnect"#"netsh #{iface} connect ssid=YOURSSID name=PROFILENAME"
-          resetWiFiChain = [ "disconnect" ]
-        when "darwin" # i.e., MacOS
-          # In MacOS, we are going to turn the wireless off and then on again.
-          # (lol)
-          COMMANDS =
-            enableAirport: "networksetup -setairportpower #{WiFiControlSettings.iface} on"
-            disableAirport: "networksetup -setairportpower #{WiFiControlSettings.iface} off"
-          resetWiFiChain = [ "disableAirport", "enableAirport" ]
+      os_instructions.resetWiFi.call CXT
+
       #
-      # (2) Execute each command.
+      # (2) Ensure that the power has been restored to the interface!
       #
-      for com in resetWiFiChain
-        WiFiLog "Executing:\t#{COMMANDS[com]}"
-        stdout = execSync COMMANDS[com]
-        _msg = "Success!"
-        WiFiLog _msg
+      CXT.WiFiLog "Waiting for interface to finish resetting..."
+
       #
-      # (3) Ensure that the power has been restored to the interface!
+      # (3) check_iface is a helper function we use to repeatedly
+      #     check on the ifaceState using setTimeouts.  This containment
+      #     is important because it makes it possible to implement
+      #     connectionTimeout.
       #
-      WiFiLog "Waiting for interface to finish resetting..."
-      while true
+      t0 = new Date()
+      check_iface = (cb) =>
         ifaceState = @getIfaceState()
-        if ifaceState.success
-          if ifaceState.power
-            WiFiLog "Success!  Wireless interface is now reset."
-            break
-        else
-          _msg = "Error: Interface could not be reset."
-          WiFiLog _msg, true
-          return {
-            success: false
+        # If the connection is settled, check if we're connected
+        # to the requested _ap.
+        if ifaceState.success and ((ifaceState.connection is "connected") or (ifaceState.connection is "disconnected"))
+          _msg = "Success!  Wireless interface is now reset."
+          cb null,
+            success: true
             msg: _msg
-          }
-      return {
-        success: true
-        msg: "Successfully reset WiFi!"
-      }
+          return
+
+        # Attempt to confirm connection up to connectionTimeout milliseconds
+        if (new Date() - t0) < CXT.WiFiControlSettings.connectionTimeout
+          setTimeout ->
+            check_iface cb
+          , 250
+        else
+          cb "Reset confirmation timed out. (#{CXT.WiFiControlSettings.connectionTimeout}ms)",
+            success: false,
+            msg: "Error: Could not completely reset WiFi."
+
+      #
+      # (4) Start the check_iface loop
+      #     This will eventually return the user's callback "cb".
+      #
+      check_iface cb
+
     catch error
       _msg = "Encountered an error while resetting wireless interface: #{error}"
-      WiFiLog _msg, true
-      return {
+      CXT.WiFiLog _msg, true
+      cb error,
         success: false
         msg: _msg
-      }
 
   #
   # getIfaceState:     Return current connection state of the network

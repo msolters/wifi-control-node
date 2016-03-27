@@ -112,3 +112,26 @@ module.exports =
       # Otherwise, so far so good!
       #
       @WiFiLog "Success!"
+
+  #
+  # In MacOS, we are going to turn the wireless off and then on again.
+  # (lol)
+  #
+  resetWiFi: ->
+    #
+    # (1) Construct a chain of commands to restart
+    #     Airport service
+    #
+    COMMANDS =
+      enableAirport: "networksetup -setairportpower #{WiFiControlSettings.iface} on"
+      disableAirport: "networksetup -setairportpower #{WiFiControlSettings.iface} off"
+    resetWiFiChain = [ "disableAirport", "enableAirport" ]
+
+    #
+    # (2) Execute each command.
+    #
+    for com in resetWiFiChain
+      @WiFiLog "Executing:\t#{COMMANDS[com]}"
+      stdout = @execSync COMMANDS[com]
+      _msg = "Success!"
+      @WiFiLog _msg
