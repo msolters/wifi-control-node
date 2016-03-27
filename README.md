@@ -75,7 +75,8 @@ You can reconfigure the `WiFiControl` settings at any time using this method.  P
 ```js
   var settings = {
     debug: true || false,
-    iface: 'wlan0'
+    iface: 'wlan0',
+    connectionTimeout: 10000 // in ms
   };
 
   WiFiControl.configure( settings );
@@ -88,19 +89,19 @@ key | Explanation
 ---|---
 `debug` | (optional, Bool) When `debug: true`,  will turn on verbose output to the server console.  When `debug: false` (default), only errors will be printed to the server console.
 `iface` | (optional, String) Can be used to manually specify a network interface to use, instead of relying on `WiFiControl.findInterface()` to automatically find it.  This could be useful if for any reason `WiFiControl.findInterface()` is not working, or you have multiple network cards.
+`connectionTimeout` | (optional, Int) WiFi connection using `WiFiControl.connectToAP` method takes place in 2 steps. The first is the OS-specific commands required to associate the wireless device with the WiFi network specified by `ap`.  The second is a confirmation phase, where we must wait for the connection to be confirmed (in case of i.e. bad password, unstable AP, banned MAC address, ...).  By default, we allow 5 seconds for this step (`connectionTimeout: 5000`). You can override this value here.
 
 ## Scan for Networks
 ```js
   WiFiControl.scanForWiFi( function(err, response) {
-    if (err) console.log(error);
+    if (err) console.log(err);
     console.log(response);
   });
 ```
 
 On Windows and MacOS, this package uses the [node-wifiscanner2 NPM package](https://www.npmjs.com/package/node-wifiscanner2) by Spark for the heavy lifting where AP scanning is concerned.  However, since `node-wifiscanner2` requires `sudo` to scan for more than the network the host machine is *currently connected to* on Linux, a custom scanning algorithm is implemented inside `WiFiControl` that leverages `nmcli` instead.
 
-Note that this method is the only async `WiFiControl` method, and requires a callback to be passed in order to use its results.
-
+Note that this method is an async `WiFiControl` method, and requires a callback to be passed in order to use its results.
 
 Example output:
 ```js
@@ -117,19 +118,31 @@ Example output:
 
 ## Connect To WiFi Network
 ```js
-  var results = WiFiControl.connectToAP( _ap );
+  var results = WiFiControl.connectToAP( _ap, callback );
 ```
-The `WiFiControl.connectToAP( _ap )` command takes a wireless access point as an object and attempts to direct the host machine's wireless interface to connect to it.
+The `WiFiControl.connectToAP( _ap, cb )` command takes a wireless access point as an object and attempts to direct the host machine's wireless interface to connect to it.  Note this is an asynchronous function because it can sometimes take on the order of minutes to complete, depending on factors such as your wireless interface and AP strength & distance!
 
 ```js
   var _ap = {
     ssid: "Home 2.4Ghz",
     password: "mypassword"
   };
-  var results = WiFiControl.connectToAP( _ap );
+  var results = WiFiControl.connectToAP( _ap, function(err, response) {
+    if (err) console.log(err);
+    console.log(response);
+  });
 ```
 
 The `.password` property is optional and may be omitted for open networks.
+
+Example output:
+
+```js
+  {
+    success: true,
+    msg: 'Successfully connected to "Home 2.4Ghz"!'
+  }
+```
 
 > Note: The only types of networks tested to work on Windows so far are WPA2-Personal and Open.  Any type of security is expected to work on Linux and MacOS.
 
@@ -208,6 +221,12 @@ This package has been developed to be compatible with Node v0.10.36 because it i
 
 
 ## Change Log
+### v1.0.3
+3/27/2016
+*  Replace infinite loops with (customizable) timeouts
+*  `WiFiControl.connectToAP(ap, cb)` is now asynchronous.
+*  OS-specific source code has been refactored into separate files (`darwin.coffee`, `win32.coffee`, `linux.coffee`)
+
 ### v1.0.2
 3/22/2016
 *  Fix multiple instances of catastrophic backtracking in RegExp objects.
