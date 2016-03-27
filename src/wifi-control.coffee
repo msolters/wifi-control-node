@@ -6,6 +6,7 @@ WiFiScanner = require 'node-wifiscanner2'
 # To execute commands in the host machine, we'll use sync-exec.
 # Note: In nodejs >= v0.12 this will default to child_process.execSync.
 execSyncToBuffer = require 'sync-exec'
+events = require 'events'
 
 
 #
@@ -32,6 +33,7 @@ private_context =
   WiFiControlSettings:
     iface: null
     debug: false
+    connectionTimeout: 5000
 
   #
   # execSync: Executes command with options via child_process.execSync,
@@ -54,10 +56,14 @@ private_context =
     else
       console.log "WiFiControl: #{msg}" if @WiFiControlSettings.debug
 
+
+
 #
 # WiFiControl Methods.
 #
 module.exports =
+  events: new events.EventEmitter()
+
   #
   # init:   Initial setup.  This is almost the same as config, except it
   #         adds the additional step of attempting to automatically locate
@@ -84,6 +90,10 @@ module.exports =
     if settings.debug?
       private_context.WiFiControlSettings.debug = settings.debug
       private_context.WiFiLog "Debug mode set to: #{settings.debug}"
+    if settings.connectionTimeout?
+      settings.connectionTimeout = parseInt settings.connectionTimeout
+      private_context.WiFiControlSettings.connectionTimeout = settings.connectionTimeout
+      private_context.WiFiLog "AP connection attempt timeout set to: #{settings.connectionTimeout}ms"
     # Set network interface to settings.iface.
     @findInterface settings.iface if settings.iface?
 
@@ -189,6 +199,7 @@ module.exports =
           success: false
           msg: "Please provide a non-empty SSID."
         }
+
       #
       # (2) Verify there is a valid password (if no password, just add an empty one == open network)
       #
@@ -205,41 +216,60 @@ module.exports =
       #     to make sure it ends up actually being connected to the
       #     desired SSID.
       #
-      private_context.WiFiLog "Waiting for connection attempt to settle..."
-      while true
+      request_msg = "WiFi connection request to \"#{_ap.ssid}\" has been processed."
+      private_context.WiFiLog request_msg
+
+      t0 = new Date()
+      check_iface = (_ap) =>
         ifaceState = @getIfaceState()
         if ifaceState.success
-          if ifaceState.connection is "connected"
-            break
-          else if ifaceState.connection is "disconnected"
+          if ifaceState.ssid is _ap.ssid
+            #
+            # We're connected, and on the right SSID!  Success.
+            #
+            _msg = "Successfully connected to \"#{_ap.ssid}\"!"
+            private_context.WiFiLog _msg
+            connect_to_ap_result =
+              success: true
+              msg: _msg
+          else if !ifaceState.ssid?
+            #
+            # Device is not connected to any known SSID
+            #
             _msg = "Error: Interface is not currently connected to any wireless AP."
             private_context.WiFiLog _msg, true
-            return {
+            connect_to_ap_result =
               success: false
               msg: _msg
-            }
-      if ifaceState.ssid is _ap.ssid
-        #
-        # We're connected, and on the right SSID!  Success.
-        #
-        _msg = "Successfully connected to #{_ap.ssid}!"
-        private_context.WiFiLog _msg
-        return {
-          success: true
-          msg: _msg
-        }
-      else
-        #
-        # We're connected, but to the wrong SSID!
-        #
-        _msg = "Error: Interface is currently connected to #{ifaceState.ssid}"
-        private_context.WiFiLog _msg, true
-        return {
-          success: false
-          msg: _msg
-        }
+          else
+            #
+            # We're connected, but to the wrong SSID!
+            #
+            _msg = "Error: Interface is currently connected to \"#{ifaceState.ssid}\""
+            private_context.WiFiLog _msg, true
+            connect_to_ap_result =
+              success: false
+              msg: _msg
+          @events.emit 'connect-to-ap', connect_to_ap_result
+          return
+        # Attempt to confirm connection up to connectionTimeout milliseconds
+        if (new Date() - t0) < private_context.WiFiControlSettings.connectionTimeout
+          setTimeout ->
+            check_iface _ap
+          , 250
+        else
+          @events.emit 'connect-to-ap',
+            success: false
+            msg: "Connection attempt timed out. (#{private_context.WiFiControlSettings.connectionTimeout}ms)"
+
+      check_iface _ap
+      return {
+        success: true,
+        msg: request_msg
+      }
+
     catch error
-      _msg = "Encountered an error while connecting to #{_ap.ssid}: #{error}"
+      _msg = "Encountered an error while connecting to \"#{_ap.ssid}\": #{error}"
       private_context.WiFiLog _msg, true
       return {
         success: false

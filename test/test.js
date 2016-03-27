@@ -1,7 +1,8 @@
 WiFiControl = require("../lib/wifi-control.js");
 
 WiFiControl.init({
-  debug: true
+  debug: true,
+  connectionTimeout: 2000
 });
 
 console.log( WiFiControl.getIfaceState() );
@@ -9,14 +10,19 @@ console.log( WiFiControl.getIfaceState() );
 
 WiFiControl.scanForWiFi( function(error, response) {
   //if (error) console.log(error);
-  //console.log(response);
+  console.log(response);
 });
 
+test_ap = {
+  ssid: "And We Will Call It....THIS LAN!",
+  password: "poopscuttle"
+};
 
-console.log( WiFiControl.connectToAP({
-  ssid: "whew phi",
-  password: "driblet123"
-}) );
+WiFiControl.events.on('connect-to-ap', function(results) {
+  console.log( results );
+});
+
+console.log( WiFiControl.connectToAP( test_ap ) );
 
 /*
 console.log( WiFiControl.resetWiFi() );
