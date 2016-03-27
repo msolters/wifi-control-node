@@ -47,9 +47,11 @@ You may encounter errors if you use this module on a system lacking these comman
 
 **A Note About Synchronicity** (*Synchronicity!*)
 
-All native `WiFiControl` methods are synchronous.  Calls to them will block.  This is a decision made that reflects the fact that low-level system operations such as starting and stopping network interfaces should not be happening simultaneously.  Plus, there's lots of situations where you need to wait -- you can't communicate over a network, for instance, until you're totally sure you've fully associated with the router.
+Almost all native `WiFiControl` methods are synchronous.  Calls to them will block.  This is a decision made that reflects the fact that low-level system operations such as starting and stopping network interfaces should not be happening simultaneously.  Plus, there's lots of situations where you need to wait -- you can't communicate over a network, for instance, until you're totally sure you've fully associated with the router.
 
-The only exception to this is `WiFiControl.scanForWiFi( callback )`.
+There are only two exceptions to this.
+*  `WiFiControl.scanForWiFi( callback )` - this can take a while (1-10 seconds) so we use a callback to return the scan results.
+*  `WiFiControl.connectToAP( ap, callback )` - this can sometimes take several minutes so we use a callback to report on how it went.
 
 ---
 

@@ -12,16 +12,15 @@ WiFiControl.scanForWiFi( function(error, response) {
   console.log(response);
 });
 
-test_ap = ;
-
-WiFiControl.events.on('connect-to-ap', function(results) {
-  console.log( results );
-});
-
-console.log( WiFiControl.connectToAP( {
+var test_ap = {
   ssid: "And We Will Call It....THIS LAN!",
-  password: "poopscuttle"
-} ) );
+  password: "poopscuttld"
+};
+
+WiFiControl.connectToAP( test_ap, function(error, response) {
+  if (error) console.log(error);
+  console.log(response);
+});
 
 /*
 console.log( WiFiControl.resetWiFi() );
