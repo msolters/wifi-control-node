@@ -244,8 +244,8 @@ This package has been developed to be compatible with Node v0.10.36 because it i
 
 
 ## Change Log
-### v1.0.3
-3/27/2016
+### v2.0.0
+3/28/2016
 *  Replace infinite loops with (customizable) timeouts
 *  `WiFiControl.connectToAP(ap, cb)` is now asynchronous.  **This is a breaking change if it is currently implemented in user application code as a sync method.**
 *  `WiFiControl.resetWiFi(cb)` is now asynchronous.  **This is a breaking change if it is currently implemented in user application code as a sync method.**
