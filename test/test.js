@@ -1,17 +1,45 @@
 WiFiControl = require("../lib/wifi-control.js");
+
 WiFiControl.init({
-  debug: true
+  debug: true,
+  connectionTimeout: 2000
 });
 
+
+/*
+ *  Get info about wireless interface!
+ */
 console.log( WiFiControl.getIfaceState() );
 
-WiFiControl.scanForWiFi( function(err, response) {
-  if (err) console.log(error);
+/*
+ *  Scan for nearby WiFi!
+ */
+WiFiControl.scanForWiFi( function(error, response) {
+  if (error) console.log(error);
   console.log(response);
 });
 
-console.log( WiFiControl.connectToAP({
-  ssid: "xfinitywifi"
-}) );
 
-console.log( WiFiControl.resetWiFi() );
+/*
+ *  Connect to an Access Point!
+ */
+var open_ap = {
+  ssid: "And We Will Call It....THIS LAN!"
+};
+var closed_ap = {
+  ssid: "And We Will Call It....THIS LAN!",
+  password: "hench4life"
+};
+
+WiFiControl.connectToAP( closed_ap, function(error, response) {
+  if (error) console.log(error);
+  console.log(response);
+});
+
+/*
+ *  Reset the WiFi card!
+ */
+WiFiControl.resetWiFi( function(error, response) {
+  if (error) console.log(error);
+  console.log(response);
+});
