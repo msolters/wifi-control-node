@@ -129,7 +129,7 @@ module.exports =
     return networks
 
   #
-  # With Linux, we can use nmcli to do the heavy lifting.
+  # With Linux, we can use iw to do the heavy lifting.
   #
   connectToAP: ( _ap ) ->
     #
@@ -205,8 +205,8 @@ module.exports =
     #     the Network Manager service
     #
     COMMANDS =
-      disableNetworking: "nmcli networking off"
-      enableNetworking: "nmcli networking on"
+      disableNetworking: "sudo ifconfig #{@WiFiControlSettings.iface} down"
+      enableNetworking: "sudo ifconfig #{@WiFiControlSettings.iface} up"
     resetWiFiChain = [ "disableNetworking", "enableNetworking" ]
 
     #
