@@ -1,6 +1,12 @@
 parsePatterns =
   iwconfig_line: new RegExp /([^ ]+)/
   iw_dev_link_line: new RegExp /([^:]+): ([^\n]+)/
+  iwlist:
+    new_cell: new RegExp /.*BSS [0-9a-z]{2}:.*/
+    ssid: new RegExp /.*SSID: (.*).*/
+    encryption: new RegExp /.*Privacy.*/
+    signal: new RegExp /.*signal: (-[0-9\.]+).*/
+    channel: new RegExp /.*DS Parameter set: channel ([0-9]+)/
 
 connectionStateMap =
   connected: "connected" # Win32 & Linux
@@ -42,7 +48,7 @@ module.exports =
       }
 
   #
-  # For Linux, parse nmcli to acquire networking interface data.
+  # For Linux, parse iw dev link to acquire networking interface data.
   #
   getIfaceState: ->
     interfaceState = {}
@@ -77,34 +83,49 @@ module.exports =
   #
   scanForWiFi: ->
     #
-    # Use nmcli to list visible wifi networks.
+    # Use iw to list visible wifi networks.
     #
-    scanResults = @execSync "nmcli -m multiline device wifi list"
+    scanResults = @execSync "sudo iw dev #{@WiFiControlSettings.iface} scan ap-force"
+    networks = []
     #
     # Parse the results into an array of AP objects to match
     # the structure found in node-wifiscanner2 for win32 and MacOS.
     #
-    networks = []
-    for nwk, c in scanResults.split '*:'
-      continue if c is 0
-      _network = {}
-      for ln, k in nwk.split '\n'
-        try
-          parsedLine = parsePatterns.nmcli_line.exec( ln.trim() )
-          KEY = parsedLine[1]
-          VALUE = parsedLine[2]
-        catch error
-          continue  # this line was not a key: value pair!
-        switch KEY
-          when "SSID"
-            _network.ssid = String VALUE
-          when "CHAN"
-            _network.channel = String VALUE
-          when "SIGNAL"
-            _network.signal_level = String VALUE
-          when "SECURITY"
-            _network.security = String VALUE
-      networks.push _network unless _network.ssid is "--"
+    _network =
+      ssid: null
+      security: false
+      signal: null
+      channel: null
+    for ln, k in scanResults.split("\n")
+      line = ln.trim()
+      if parsePatterns.iwlist.new_cell.test ln
+        # This is a new cell, reset the current scan result object.
+        _network =
+          ssid: null
+          security: false
+          signal_level: null
+          channel: null
+        continue
+
+      ssid_parse = parsePatterns.iwlist.ssid.exec ln
+      if ssid_parse
+        _network.ssid = ssid_parse[1]
+        # This is the last line of the current cell!
+        if _network.ssid.length
+          networks.push _network
+        continue
+
+      if parsePatterns.iwlist.encryption.test ln
+        _network.security = true
+
+      channel_parse = parsePatterns.iwlist.channel.exec ln
+      if channel_parse
+        console.log channel_parse
+        _network.channel = parseInt channel_parse[1]
+
+      signal_parse = parsePatterns.iwlist.signal.exec ln
+      if signal_parse
+        _network.signal = parseInt signal_parse[1]
     return networks
 
   #
