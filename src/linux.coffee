@@ -1,5 +1,5 @@
 parsePatterns =
-  nmcli_line: new RegExp /([^:]+):\s+(.+)/
+  iwconfig_line: new RegExp /([^ ]+)/
 
 connectionStateMap =
   connected: "connected" # Win32 & Linux
@@ -13,13 +13,16 @@ powerStateMap =
 module.exports =
   autoFindInterface: ->
     @WiFiLog "Host machine is Linux."
-    # On linux, we use the results of `nmcli device status` and parse for
-    # active `wlan*` interfaces.
-    findInterfaceCom = "nmcli -m multiline device status | grep wlan"
+    # On linux, we use the results of `iwconfig` and parse for
+    # active 802.11 radios.
+    # There could be more than one choice, but we always just grab the first
+    # result.
+    findInterfaceCom = "iwconfig | grep 802.11"
     @WiFiLog "Executing: #{findInterfaceCom}"
     _interfaceLine = @execSync findInterfaceCom
-    parsedLine = parsePatterns.nmcli_line.exec( _interfaceLine.trim() )
-    _interface = parsedLine[2]
+    parsedLine = parsePatterns.iwconfig_line.exec( _interfaceLine.trim() )
+    _interface = parsedLine[0]
+    console.log _interface
     if _interface
       _iface = _interface.trim()
       _msg = "Automatically located wireless interface #{_iface}."
