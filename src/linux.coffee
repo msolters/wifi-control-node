@@ -1,5 +1,6 @@
 parsePatterns =
   iwconfig_line: new RegExp /([^ ]+)/
+  iw_dev_link_line: new RegExp /([^:]+): ([^\n]+)/
 
 connectionStateMap =
   connected: "connected" # Win32 & Linux
@@ -22,7 +23,6 @@ module.exports =
     _interfaceLine = @execSync findInterfaceCom
     parsedLine = parsePatterns.iwconfig_line.exec( _interfaceLine.trim() )
     _interface = parsedLine[0]
-    console.log _interface
     if _interface
       _iface = _interface.trim()
       _msg = "Automatically located wireless interface #{_iface}."
@@ -46,57 +46,29 @@ module.exports =
   #
   getIfaceState: ->
     interfaceState = {}
-    #
-    # (1) Get Interface Power State
-    #
-    powerData = @execSync "nmcli networking"
-    interfaceState.power = powerStateMap[ powerData.trim() ]
-    if interfaceState.power
-      #
-      # (2) First, we get connection name & state
-      #
-      foundInterface = false
-      connectionData = @execSync "nmcli -m multiline device status"
-      connectionName = null
-      for ln, k in connectionData.split '\n'
-        try
-          parsedLine = parsePatterns.nmcli_line.exec( ln.trim() )
-          KEY = parsedLine[1]
-          VALUE = parsedLine[2]
-          VALUE = null if VALUE is "--"
-        catch error
-          continue  # this line was not a key: value pair!
-        switch KEY
-          when "DEVICE"
-            foundInterface = true if VALUE is @WiFiControlSettings.iface
-          when "STATE"
-            interfaceState.connection = connectionStateMap[ VALUE ] if foundInterface
-          when "CONNECTION"
-            connectionName = VALUE if foundInterface
-        break if KEY is "CONNECTION" and foundInterface # we have everything we need!
-      # If we didn't find anything...
-      unless foundInterface
-        return {
-          success: false
-          msg: "Unable to retrieve state of network interface #{@WiFiControlSettings.iface}."
-        }
-      if connectionName
-        #
-        # (3) Next, we get the actual SSID
-        #
-        try
-          ssidData = @execSync "nmcli -m multiline connection show \"#{connectionName}\" | grep 802-11-wireless.ssid"
-          parsedLine = parsePatterns.nmcli_line.exec( ssidData.trim() )
-          interfaceState.ssid = parsedLine[2]
-        catch error
-          return {
-            success: false
-            msg: "Error while retrieving SSID information of network interface #{@WiFiControlSettings.iface}: #{error.stderr}"
-          }
-      else
-        interfaceState.ssid = null
+    connectionState = @execSync "iw dev #{@WiFiControlSettings.iface} link"
+    if connectionState.indexOf("command failed: no such device") == -1
+      interfaceState.power = true
+      connectionStateLines = connectionState.split("\n")
+      if connectionStateLines[0].indexOf("Not connected") > -1
+        interfaceState.connection = "disconnected"
+      else if connectionStateLines[0].indexOf("Connected to") > -1
+        interfaceState.connection = "connected"
+        for ln, k in connectionStateLines.slice(1)
+          try
+            parsedLine = parsePatterns.iw_dev_link_line.exec( ln.trim() )
+            KEY = parsedLine[1]
+            VALUE = parsedLine[2]
+          catch error
+            continue
+          switch KEY
+            when "SSID"
+              interfaceState.ssid = VALUE
+              break
+        interfaceState.ssid = null if !interfaceState.ssid?
     else
-      interfaceState.connection = connectionStateMap[ VALUE ]
+      interfaceState.power = false
+      interfaceState.connection = "disconnected"
       interfaceState.ssid = null
     return interfaceState
 
