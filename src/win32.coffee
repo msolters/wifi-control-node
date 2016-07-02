@@ -116,7 +116,7 @@ module.exports =
   #
   getIfaceState: ->
     interfaceState = {}
-    connectionData = @execSync "netsh #{@WiFiControlSettings.iface} show interface"
+    connectionData = @execSync "netsh wlan show interface"
     for ln, k in connectionData.split '\n'
       try
         ln_trim = ln.trim()
@@ -195,8 +195,8 @@ module.exports =
     # (4) Load new XML profile, and connect to SSID.
     #
     COMMANDS =
-      loadProfile: "netsh #{@WiFiControlSettings.iface} add profile filename=\"#{_ap.ssid}.xml\""
-      connect: "netsh #{@WiFiControlSettings.iface} connect ssid=\"#{_ap.ssid}\" name=\"#{_ap.ssid}\""
+      loadProfile: "netsh wlan add profile filename=\"#{_ap.ssid}.xml\" interface=\"#{@WiFiControlSettings.iface}\""
+      connect: "netsh wlan connect ssid=\"#{_ap.ssid}\" name=\"#{_ap.ssid}\" interface=\"#{@WiFiControlSettings.iface}\""
     connectToAPChain = [ "loadProfile", "connect" ]
 
     #
@@ -231,7 +231,7 @@ module.exports =
     #     from the current WiFi network
     #
     COMMANDS =
-      disconnect: "netsh #{@WiFiControlSettings.iface} disconnect"
+      disconnect: "netsh wlan disconnect interface=\"#{@WiFiControlSettings.iface}\""
     resetWiFiChain = [ "disconnect" ]
 
     #
