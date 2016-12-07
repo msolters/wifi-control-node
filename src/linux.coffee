@@ -13,9 +13,9 @@ powerStateMap =
 module.exports =
   autoFindInterface: ->
     @WiFiLog "Host machine is Linux."
-    # On linux, we use the results of `nmcli device status` and parse for
+    # On linux, we use the results of `nmcli dev status` and parse for
     # active `wlan*` interfaces.
-    findInterfaceCom = "nmcli -m multiline device status | grep wlan"
+    findInterfaceCom = "nmcli -m multiline dev status | grep wlan"
     @WiFiLog "Executing: #{findInterfaceCom}"
     _interfaceLine = @execSync findInterfaceCom
     parsedLine = parsePatterns.nmcli_line.exec( _interfaceLine.trim() )
@@ -53,7 +53,7 @@ module.exports =
       # (2) First, we get connection name & state
       #
       foundInterface = false
-      connectionData = @execSync "nmcli -m multiline device status"
+      connectionData = @execSync "nmcli -m multiline dev status"
       connectionName = null
       for ln, k in connectionData.split '\n'
         try
@@ -104,7 +104,7 @@ module.exports =
     #
     # Use nmcli to list visible wifi networks.
     #
-    scanResults = @execSync "nmcli -m multiline device wifi list"
+    scanResults = @execSync "nmcli -m multiline dev wifi list"
     #
     # Parse the results into an array of AP objects to match
     # the structure found in node-wifiscanner2 for win32 and MacOS.
@@ -142,7 +142,7 @@ module.exports =
     #
     COMMANDS =
       delete: "nmcli connection delete \"#{_ap.ssid}\""
-      connect: "nmcli device wifi connect \"#{_ap.ssid}\""
+      connect: "nmcli dev wifi connect \"#{_ap.ssid}\""
     if _ap.password.length
       COMMANDS.connect += " password \"#{_ap.password}\""
     try
@@ -188,7 +188,7 @@ module.exports =
             msg: _msg
           }
         # Ignore nmcli's add/modify errors, this is a system bug
-        unless /nmcli device wifi connect/.test(COMMANDS[com])
+        unless /nmcli dev wifi connect/.test(COMMANDS[com])
           @WiFiLog error, true
           return {
             success: false
