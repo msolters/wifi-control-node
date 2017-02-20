@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "description": "Scan for, connect to, and disconnect from WiFi networks on Linux, MacOS and Windows.",
   "main": "lib/wifi-control.js",
+  "license": "MIT",
   "dependencies": {
     "node-wifiscanner2": "^1.1.0",
     "sync-exec": "^0.6.2"
