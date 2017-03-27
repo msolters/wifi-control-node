@@ -104,7 +104,7 @@ module.exports =
     #
     # Use nmcli to list visible wifi networks.
     #
-    scanResults = @execSync "nmcli -m multiline device wifi list"
+    scanResults = @execSync "nmcli -m multiline device wifi list ifname #{@WiFiControlSettings.iface}"
     #
     # Parse the results into an array of AP objects to match
     # the structure found in node-wifiscanner2 for win32 and MacOS.
