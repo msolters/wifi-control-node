@@ -224,7 +224,7 @@ module.exports =
       @WiFiLog "Success!"
 
     @WiFiLog "Removing temporary WiFi config file..."
-    @execSync "del \".\\#{_ap.ssid}.xml\""
+    @execSync "del \".\\" + urlify(_ap.ssid) + ".xml\""
 
   #
   # In Windows, we are just disconnecting from the current network.
