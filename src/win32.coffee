@@ -10,6 +10,12 @@ connectionStateMap =
   associating: "connecting" # Win32
 
 #
+# urlify: Removes special chars from the given string
+#
+urlify = (a) ->
+  a.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '-').replace /^-+|-+$/g, ''
+
+#
 # win32WirelessProfileBuilder:    This method generates the Windows wireless profile
 #                       XML file corresponding to the ssid, security, and
 #                       passphrase (key).
@@ -182,7 +188,7 @@ module.exports =
     # (3) Write xmlContent to XML wireless profile file.
     #
     try
-      fs.writeFileSync "#{_ap.ssid}.xml", xmlContent
+      fs.writeFileSync urlify(_ap.ssid) + ".xml", xmlContent
     catch error
       _msg = "Encountered an error connecting to AP: #{error}"
       @WiFiLog _msg, true
@@ -195,7 +201,7 @@ module.exports =
     # (4) Load new XML profile, and connect to SSID.
     #
     COMMANDS =
-      loadProfile: "netsh #{@WiFiControlSettings.iface} add profile filename=\"#{_ap.ssid}.xml\""
+      loadProfile: "netsh #{@WiFiControlSettings.iface} add profile filename=\"" + urlify(_ap.ssid) + ".xml\""
       connect: "netsh #{@WiFiControlSettings.iface} connect ssid=\"#{_ap.ssid}\" name=\"#{_ap.ssid}\""
     connectToAPChain = [ "loadProfile", "connect" ]
 
