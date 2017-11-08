@@ -15,7 +15,7 @@ module.exports =
     @WiFiLog "Host machine is Linux."
     # On linux, we use the results of `nmcli device status` and parse for
     # active `wlan*` interfaces.
-    findInterfaceCom = "nmcli -m multiline device status | grep wlan"
+    findInterfaceCom = "nmcli -m multiline device status | grep -B 1 -w ' wifi' | head -n 1"
     @WiFiLog "Executing: #{findInterfaceCom}"
     _interfaceLine = @execSync findInterfaceCom
     parsedLine = parsePatterns.nmcli_line.exec( _interfaceLine.trim() )
