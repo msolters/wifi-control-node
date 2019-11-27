@@ -24,10 +24,12 @@
     "ssid"
   ],
   "author": "Mark Solters <msolters@gmail.com>",
-  "contributors": [{
-    "name": "Aaronov",
-    "email": ""
-  }],
+  "contributors": [
+    {
+      "name": "Aaronov",
+      "email": ""
+    }
+  ],
   "bugs": {
     "url": "https://github.com/msolters/wifi-control-node/issues"
   },
