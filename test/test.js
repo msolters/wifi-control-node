@@ -16,7 +16,6 @@ a.forEach(state => {
     console.log(state)
   }
 });
-
 // ap = {
 //   ssid: 'UNICORNWORKING-5G',
 //   password: '25175089'
