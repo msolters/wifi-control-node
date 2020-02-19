@@ -15,7 +15,7 @@ WiFiControl.resetWiFi(iface[0].adapterName, (err) => {
     }
 })
 
-let ap = { ssid: 'MediCam_DFBAD1', password: '1234567890' }
+let ap = { ssid: 'your_ap_ssid', password: 'your_ap_password' }
 
 WiFiControl.connectToAP(ap, iface[0].adapterName, (err, resp) => {
     if (resp) {
