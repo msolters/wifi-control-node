@@ -9,15 +9,23 @@ WiFiControl.init({
 });
 let iface = WiFiControl.getIfaceState()
 
-WiFiControl.resetWiFi(iface[0].adapterName)
+WiFiControl.resetWiFi(iface[0].adapterName, (err) => {
+    if (err) {
+        console.log(err)
+    }
+})
 
-let ap = { ssid: 'your ap name', password: 'your ap password' }
+let ap = { ssid: 'MediCam_DFBAD1', password: '1234567890' }
 
 WiFiControl.connectToAP(ap, iface[0].adapterName, (err, resp) => {
     if (resp) {
-        console.log("connected: " + resp)
-        WiFiControl.resetWiFi(iface[0].adapterName)
+        console.log("connected: ", resp)
+        // WiFiControl.resetWiFi(iface[0].adapterName, (err) => {
+        //     if (err) {
+        //         console.log(err)
+        //     }
+        // })
     }
     if (err)
-        console.log("error" + ReferenceError)
+        console.log("error", err)
 })
