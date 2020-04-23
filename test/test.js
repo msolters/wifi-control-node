@@ -9,23 +9,25 @@ WiFiControl.init({
 });
 let iface = WiFiControl.getIfaceState()
 
-WiFiControl.resetWiFi(iface[0].adapterName, (err) => {
-    if (err) {
-        console.log(err)
-    }
-})
+console.log("getInterfaceState", iface);
 
-let ap = { ssid: 'your_ap_ssid', password: 'your_ap_password' }
+// WiFiControl.resetWiFi(iface[0].adapterName, (err) => {
+//     if (err) {
+//         console.log(err)
+//     }
+// })
 
-WiFiControl.connectToAP(ap, iface[0].adapterName, (err, resp) => {
-    if (resp) {
-        console.log("connected: ", resp)
-        // WiFiControl.resetWiFi(iface[0].adapterName, (err) => {
-        //     if (err) {
-        //         console.log(err)
-        //     }
-        // })
-    }
-    if (err)
-        console.log("error", err)
-})
+// let ap = { ssid: 'your_ap_ssid', password: 'your_ap_password' }
+
+// WiFiControl.connectToAP(ap, iface[0].adapterName, (err, resp) => {
+//     if (resp) {
+//         console.log("connected: ", resp)
+//         // WiFiControl.resetWiFi(iface[0].adapterName, (err) => {
+//         //     if (err) {
+//         //         console.log(err)
+//         //     }
+//         // })
+//     }
+//     if (err)
+//         console.log("error", err)
+// })
