@@ -30,3 +30,4 @@ package-lock.json
 package.json
 
 test/*
+.vs*
