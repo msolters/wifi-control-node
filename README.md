@@ -1,5 +1,7 @@
 # wifi-control
 
+PLEASE NOTE: This project is not actively maintained
+
 A NodeJS module providing methods for scanning local WiFi access points, as well as connecting/disconnecting to networks.  Works for Windows, Linux and MacOS.
 
 Maybe you have a SoftAP-based IoT toy, and you just need to make a thin downloadeable "setup" client?  Maybe you want to make a headless Rpi-based device that needs to frequently change APs?
