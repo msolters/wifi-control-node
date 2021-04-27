@@ -1,5 +1,12 @@
 parsePatterns =
-  nmcli_line: new RegExp /([^:]+):\s+(.+)/
+  iwconfig_line: new RegExp /([^ ]+)/
+  iw_dev_link_line: new RegExp /([^:]+): ([^\n]+)/
+  iwlist:
+    new_cell: new RegExp /.*BSS [0-9a-z]{2}:.*/
+    ssid: new RegExp /.*SSID: (.*).*/
+    encryption: new RegExp /.*Privacy.*/
+    signal: new RegExp /.*signal: (-[0-9\.]+).*/
+    channel: new RegExp /.*DS Parameter set: channel ([0-9]+)/
 
 connectionStateMap =
   connected: "connected" # Win32 & Linux
@@ -13,13 +20,15 @@ powerStateMap =
 module.exports =
   autoFindInterface: ->
     @WiFiLog "Host machine is Linux."
-    # On linux, we use the results of `nmcli device status` and parse for
-    # active `wlan*` interfaces.
-    findInterfaceCom = "nmcli -m multiline device status | grep wlan"
+    # On linux, we use the results of `iwconfig` and parse for
+    # active 802.11 radios.
+    # There could be more than one choice, but we always just grab the first
+    # result.
+    findInterfaceCom = "iwconfig | grep 802.11"
     @WiFiLog "Executing: #{findInterfaceCom}"
     _interfaceLine = @execSync findInterfaceCom
-    parsedLine = parsePatterns.nmcli_line.exec( _interfaceLine.trim() )
-    _interface = parsedLine[2]
+    parsedLine = parsePatterns.iwconfig_line.exec( _interfaceLine.trim() )
+    _interface = parsedLine[0]
     if _interface
       _iface = _interface.trim()
       _msg = "Automatically located wireless interface #{_iface}."
@@ -39,61 +48,33 @@ module.exports =
       }
 
   #
-  # For Linux, parse nmcli to acquire networking interface data.
+  # For Linux, parse iw dev link to acquire networking interface data.
   #
   getIfaceState: ->
     interfaceState = {}
-    #
-    # (1) Get Interface Power State
-    #
-    powerData = @execSync "nmcli networking"
-    interfaceState.power = powerStateMap[ powerData.trim() ]
-    if interfaceState.power
-      #
-      # (2) First, we get connection name & state
-      #
-      foundInterface = false
-      connectionData = @execSync "nmcli -m multiline device status"
-      connectionName = null
-      for ln, k in connectionData.split '\n'
-        try
-          parsedLine = parsePatterns.nmcli_line.exec( ln.trim() )
-          KEY = parsedLine[1]
-          VALUE = parsedLine[2]
-          VALUE = null if VALUE is "--"
-        catch error
-          continue  # this line was not a key: value pair!
-        switch KEY
-          when "DEVICE"
-            foundInterface = true if VALUE is @WiFiControlSettings.iface
-          when "STATE"
-            interfaceState.connection = connectionStateMap[ VALUE ] if foundInterface
-          when "CONNECTION"
-            connectionName = VALUE if foundInterface
-        break if KEY is "CONNECTION" and foundInterface # we have everything we need!
-      # If we didn't find anything...
-      unless foundInterface
-        return {
-          success: false
-          msg: "Unable to retrieve state of network interface #{@WiFiControlSettings.iface}."
-        }
-      if connectionName
-        #
-        # (3) Next, we get the actual SSID
-        #
-        try
-          ssidData = @execSync "nmcli -m multiline connection show \"#{connectionName}\" | grep 802-11-wireless.ssid"
-          parsedLine = parsePatterns.nmcli_line.exec( ssidData.trim() )
-          interfaceState.ssid = parsedLine[2]
-        catch error
-          return {
-            success: false
-            msg: "Error while retrieving SSID information of network interface #{@WiFiControlSettings.iface}: #{error.stderr}"
-          }
-      else
-        interfaceState.ssid = null
+    connectionState = @execSync "iw dev #{@WiFiControlSettings.iface} link"
+    if connectionState.indexOf("command failed: no such device") == -1
+      interfaceState.power = true
+      connectionStateLines = connectionState.split("\n")
+      if connectionStateLines[0].indexOf("Not connected") > -1
+        interfaceState.connection = "disconnected"
+      else if connectionStateLines[0].indexOf("Connected to") > -1
+        interfaceState.connection = "connected"
+        for ln, k in connectionStateLines.slice(1)
+          try
+            parsedLine = parsePatterns.iw_dev_link_line.exec( ln.trim() )
+            KEY = parsedLine[1]
+            VALUE = parsedLine[2]
+          catch error
+            continue
+          switch KEY
+            when "SSID"
+              interfaceState.ssid = VALUE
+              break
+        interfaceState.ssid = null if !interfaceState.ssid?
     else
-      interfaceState.connection = connectionStateMap[ VALUE ]
+      interfaceState.power = false
+      interfaceState.connection = "disconnected"
       interfaceState.ssid = null
     return interfaceState
 
@@ -102,38 +83,53 @@ module.exports =
   #
   scanForWiFi: ->
     #
-    # Use nmcli to list visible wifi networks.
+    # Use iw to list visible wifi networks.
     #
-    scanResults = @execSync "nmcli -m multiline device wifi list"
+    scanResults = @execSync "sudo iw dev #{@WiFiControlSettings.iface} scan ap-force"
+    networks = []
     #
     # Parse the results into an array of AP objects to match
     # the structure found in node-wifiscanner2 for win32 and MacOS.
     #
-    networks = []
-    for nwk, c in scanResults.split '*:'
-      continue if c is 0
-      _network = {}
-      for ln, k in nwk.split '\n'
-        try
-          parsedLine = parsePatterns.nmcli_line.exec( ln.trim() )
-          KEY = parsedLine[1]
-          VALUE = parsedLine[2]
-        catch error
-          continue  # this line was not a key: value pair!
-        switch KEY
-          when "SSID"
-            _network.ssid = String VALUE
-          when "CHAN"
-            _network.channel = String VALUE
-          when "SIGNAL"
-            _network.signal_level = String VALUE
-          when "SECURITY"
-            _network.security = String VALUE
-      networks.push _network unless _network.ssid is "--"
+    _network =
+      ssid: null
+      security: false
+      signal: null
+      channel: null
+    for ln, k in scanResults.split("\n")
+      line = ln.trim()
+      if parsePatterns.iwlist.new_cell.test ln
+        # This is a new cell, reset the current scan result object.
+        _network =
+          ssid: null
+          security: false
+          signal_level: null
+          channel: null
+        continue
+
+      ssid_parse = parsePatterns.iwlist.ssid.exec ln
+      if ssid_parse
+        _network.ssid = ssid_parse[1]
+        # This is the last line of the current cell!
+        if _network.ssid.length
+          networks.push _network
+        continue
+
+      if parsePatterns.iwlist.encryption.test ln
+        _network.security = true
+
+      channel_parse = parsePatterns.iwlist.channel.exec ln
+      if channel_parse
+        console.log channel_parse
+        _network.channel = parseInt channel_parse[1]
+
+      signal_parse = parsePatterns.iwlist.signal.exec ln
+      if signal_parse
+        _network.signal = parseInt signal_parse[1]
     return networks
 
   #
-  # With Linux, we can use nmcli to do the heavy lifting.
+  # With Linux, we can use iw to do the heavy lifting.
   #
   connectToAP: ( _ap ) ->
     #
@@ -209,8 +205,8 @@ module.exports =
     #     the Network Manager service
     #
     COMMANDS =
-      disableNetworking: "nmcli networking off"
-      enableNetworking: "nmcli networking on"
+      disableNetworking: "sudo ifconfig #{@WiFiControlSettings.iface} down"
+      enableNetworking: "sudo ifconfig #{@WiFiControlSettings.iface} up"
     resetWiFiChain = [ "disableNetworking", "enableNetworking" ]
 
     #
