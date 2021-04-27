@@ -9,7 +9,7 @@
     "sync-exec": "^0.6.2"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test/test.js"
   },
   "repository": {
     "type": "git",
@@ -24,10 +24,12 @@
     "ssid"
   ],
   "author": "Mark Solters <msolters@gmail.com>",
-  "contributors": [{
-    "name": "Aaronov",
-    "email": ""
-  }],
+  "contributors": [
+    {
+      "name": "Aaronov",
+      "email": ""
+    }
+  ],
   "bugs": {
     "url": "https://github.com/msolters/wifi-control-node/issues"
   },

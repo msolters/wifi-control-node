@@ -1,45 +1,33 @@
+'use-strict'
 WiFiControl = require("../lib/wifi-control.js");
+const sleep = (millis) => new Promise(resolve => setTimeout(resolve, millis));
+
 
 WiFiControl.init({
-  debug: true,
-  connectionTimeout: 2000
+    debug: true,
+    connectionTimeout: 7000
 });
+let iface = WiFiControl.getIfaceState()
 
+console.log("getInterfaceState", iface);
 
-/*
- *  Get info about wireless interface!
- */
-console.log( WiFiControl.getIfaceState() );
+WiFiControl.resetWiFi(iface[0].adapterName, (err) => {
+    if (err) {
+        console.log(err)
+    }
+})
 
-/*
- *  Scan for nearby WiFi!
- */
-WiFiControl.scanForWiFi( function(error, response) {
-  if (error) console.log(error);
-  console.log(response);
-});
+let ap = { ssid: 'MediCam_DFBAD1', password: '1234567890' }
 
-
-/*
- *  Connect to an Access Point!
- */
-var open_ap = {
-  ssid: "And We Will Call It....THIS LAN!"
-};
-var closed_ap = {
-  ssid: "And We Will Call It....THIS LAN!",
-  password: "hench4life"
-};
-
-WiFiControl.connectToAP( closed_ap, function(error, response) {
-  if (error) console.log(error);
-  console.log(response);
-});
-
-/*
- *  Reset the WiFi card!
- */
-WiFiControl.resetWiFi( function(error, response) {
-  if (error) console.log(error);
-  console.log(response);
-});
+WiFiControl.connectToAP(ap, iface[0].adapterName, (err, resp) => {
+    if (resp) {
+        console.log("connected: ", resp)
+        // WiFiControl.resetWiFi(iface[0].adapterName, (err) => {
+        //     if (err) {
+        //         console.log(err)
+        //     }
+        // })
+    }
+    if (err)
+        console.log("error", err)
+})
